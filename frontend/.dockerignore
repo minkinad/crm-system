@@ -1,0 +1,6 @@
+# Ignore local build artifacts and dependencies in docker context.
+node_modules
+npm-debug.log
+dist
+.git
+.env
