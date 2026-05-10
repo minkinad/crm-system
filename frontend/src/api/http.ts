@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosHeaders, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../auth/store';
 import { AuthResponse } from '../shared/types/auth';
 
@@ -12,22 +12,29 @@ export const apiClient = axios.create({
   withCredentials: true
 });
 
+function getLoginLocation(): string {
+  const basePath = import.meta.env.BASE_URL ?? '/';
+  return import.meta.env.VITE_ROUTER_MODE === 'hash'
+    ? `${basePath}#/login`
+    : `${basePath}login`;
+}
+
 apiClient.interceptors.request.use((config) => {
   const { accessToken, csrfToken, user } = useAuthStore.getState();
-  const headers = (config.headers ?? {}) as Record<string, string>;
+  const headers = AxiosHeaders.from(config.headers);
   config.headers = headers;
 
   if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
+    headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
   if (user?.tenantId) {
-    headers['x-tenant-id'] = user.tenantId;
+    headers.set('x-tenant-id', user.tenantId);
   }
 
   const method = (config.method ?? 'get').toUpperCase();
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && csrfToken) {
-    headers['x-csrf-token'] = csrfToken;
+    headers.set('x-csrf-token', csrfToken);
   }
 
   return config;
@@ -56,14 +63,14 @@ apiClient.interceptors.response.use(
       );
 
       useAuthStore.getState().setSession(refreshResponse.data);
-      const headers = (originalRequest.headers ?? {}) as Record<string, string>;
+      const headers = AxiosHeaders.from(originalRequest.headers);
       originalRequest.headers = headers;
-      headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
-      headers['x-csrf-token'] = refreshResponse.data.csrfToken;
+      headers.set('Authorization', `Bearer ${refreshResponse.data.accessToken}`);
+      headers.set('x-csrf-token', refreshResponse.data.csrfToken);
       return apiClient(originalRequest);
     } catch (refreshError) {
       useAuthStore.getState().clearSession();
-      window.location.href = '/login';
+      window.location.replace(getLoginLocation());
       return Promise.reject(refreshError);
     }
   }

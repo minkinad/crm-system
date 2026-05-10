@@ -2,7 +2,10 @@
 export default () => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3000),
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(','),
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   apiPrefix: process.env.API_PREFIX ?? 'api',
   defaultApiVersion: process.env.DEFAULT_API_VERSION ?? '1',
   tenantHeader: process.env.TENANT_HEADER ?? 'x-tenant-id',

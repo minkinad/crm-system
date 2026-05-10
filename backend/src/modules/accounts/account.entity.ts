@@ -8,10 +8,10 @@ export class AccountEntity extends TenantScopedEntity {
   @Column({ length: 180 })
   name!: string;
 
-  @Column({ length: 120, nullable: true })
+  @Column({ type: 'varchar', length: 120, nullable: true })
   industry?: string | null;
 
-  @Column({ length: 180, nullable: true })
+  @Column({ type: 'varchar', length: 180, nullable: true })
   website?: string | null;
 
   @Column({ type: 'text', nullable: true })

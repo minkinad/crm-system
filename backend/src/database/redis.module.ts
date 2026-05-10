@@ -1,13 +1,15 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { REDIS_CLIENT } from './redis.constants';
+import { RedisLifecycle } from './redis.lifecycle';
 
 // Redis module provides shared Redis client for caching/rate-limits.
 @Global()
 @Module({
   providers: [
     {
-      provide: 'REDIS_CLIENT',
+      provide: REDIS_CLIENT,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         return new Redis({
@@ -17,8 +19,9 @@ import Redis from 'ioredis';
           maxRetriesPerRequest: null
         });
       }
-    }
+    },
+    RedisLifecycle
   ],
-  exports: ['REDIS_CLIENT']
+  exports: [REDIS_CLIENT]
 })
 export class RedisModule {}

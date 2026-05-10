@@ -14,7 +14,9 @@ export class TenantMiddleware implements NestMiddleware {
     '/auth/register',
     '/auth/login',
     '/auth/refresh',
-    '/health'
+    '/health',
+    '/health/live',
+    '/health/ready'
   ]);
 
   constructor(

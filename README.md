@@ -170,6 +170,24 @@ CRM-system/
    - Frontend: `http://localhost:5173`
    - Backend: `http://localhost:3000`
    - OpenAPI: `http://localhost:3000/api/docs`
+   - Readiness: `http://localhost:3000/api/v1/health/ready`
+   - Liveness: `http://localhost:3000/api/v1/health/live`
+
+## 6.1) Quality Gates
+
+- Backend build: `cd backend && npm run build`
+- Backend lint: `cd backend && npm run lint`
+- Backend tests: `cd backend && npm test -- --runInBand`
+- Frontend build: `cd frontend && npm run build`
+
+В репозиторий добавлен workflow `.github/workflows/ci.yml`, который прогоняет эти проверки на `push` и `pull_request`.
+
+## 6.2) Миграции
+
+- Генерация миграции: `cd backend && npm run migration:generate -- src/database/migrations/<MigrationName>`
+- Применение миграций: `cd backend && npm run migration:run`
+
+В проект добавлена базовая миграция `backend/src/database/migrations/1778412012813-InitialSchema.ts`, чтобы схема БД больше не зависела от ручного создания таблиц.
 
 ## 7) Деплой frontend на GitHub Pages
 
@@ -196,6 +214,7 @@ CRM-system/
 
 ## Примечания production
 
-- Для production отключите `synchronize` и используйте миграции.
-- Замените JWT secrets и cookie secure policy.
-- Добавьте observability stack (Prometheus/Grafana/Sentry) и CI/CD quality gates.
+- `synchronize` уже отключен; используйте только миграции.
+- Валидация env теперь блокирует некорректные параметры и placeholder secrets в `production`.
+- Добавлены readiness/liveness endpoints, глобальный error contract, CI quality gates и корректное завершение Redis-клиента.
+- Для следующего этапа рекомендую добавить observability stack: Sentry + Prometheus/Grafana + централизованный log shipping.

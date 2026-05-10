@@ -1,20 +1,22 @@
 import {
   CanActivate,
   ExecutionContext,
+  HttpException,
+  HttpStatus,
   Inject,
-  Injectable,
-  TooManyRequestsException
+  Injectable
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import Redis from 'ioredis';
 import { RATE_LIMIT_KEY } from '../decorators/rate-limit.decorator';
+import { REDIS_CLIENT } from '../../database/redis.constants';
 
 // Redis-backed rate limiting guard for API abuse protection.
 @Injectable()
 export class RedisRateLimitGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis
+    @Inject(REDIS_CLIENT) private readonly redis: Redis
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -36,7 +38,7 @@ export class RedisRateLimitGuard implements CanActivate {
     }
 
     if (count > routeSettings.limit) {
-      throw new TooManyRequestsException('Rate limit exceeded');
+      throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
 
     return true;

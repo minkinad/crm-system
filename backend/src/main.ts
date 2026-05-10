@@ -5,12 +5,17 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
 
 // Application bootstrap with security defaults and OpenAPI setup.
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  const expressApp = app.getHttpAdapter().getInstance();
+
+  app.enableShutdownHooks();
+  expressApp.set('trust proxy', 1);
 
   app.use(helmet());
   app.use(cookieParser());
@@ -34,6 +39,7 @@ async function bootstrap(): Promise<void> {
       forbidNonWhitelisted: true
     })
   );
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CRM API')
@@ -44,7 +50,7 @@ async function bootstrap(): Promise<void> {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('/api/docs', app, document);
 
-  await app.listen(configService.get<number>('port', 3000));
+  await app.listen(configService.get<number>('port', 3000), '0.0.0.0');
 }
 
 bootstrap();

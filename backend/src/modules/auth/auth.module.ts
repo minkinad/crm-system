@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
 import { TenantsModule } from '../tenants/tenants.module';
@@ -10,7 +11,12 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 
 // Auth module composes JWT strategies and session persistence.
 @Module({
-  imports: [TypeOrmModule.forFeature([AuthSessionEntity]), UsersModule, TenantsModule],
+  imports: [
+    JwtModule.register({}),
+    TypeOrmModule.forFeature([AuthSessionEntity]),
+    UsersModule,
+    TenantsModule
+  ],
   controllers: [AuthController],
   providers: [AuthService, AccessTokenStrategy, RefreshTokenStrategy],
   exports: [AuthService]

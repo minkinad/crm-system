@@ -12,13 +12,13 @@ export class ContactEntity extends TenantScopedEntity {
   @Column({ length: 120 })
   lastName!: string;
 
-  @Column({ length: 180, nullable: true })
+  @Column({ type: 'varchar', length: 180, nullable: true })
   email?: string | null;
 
-  @Column({ length: 60, nullable: true })
+  @Column({ type: 'varchar', length: 60, nullable: true })
   phone?: string | null;
 
-  @Column({ length: 120, nullable: true })
+  @Column({ type: 'varchar', length: 120, nullable: true })
   position?: string | null;
 
   @Column({ type: 'uuid', nullable: true })

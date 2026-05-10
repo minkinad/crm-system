@@ -5,13 +5,14 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
-import * as jwt from 'jsonwebtoken';
 import { Repository } from 'typeorm';
 import { Role } from '../../common/constants/roles';
+import { parseDurationToMs } from '../../common/utils/duration.util';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { USERS_REPOSITORY, UsersRepository } from '../users/repositories/users.repository.interface';
 import { UserEntity } from '../users/user.entity';
@@ -31,6 +32,7 @@ interface TokenSet {
 export class AuthService {
   constructor(
     private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
     private readonly tenantsService: TenantsService,
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: UsersRepository,
@@ -173,7 +175,7 @@ export class AuthService {
   }
 
   private async issueTokens(user: UserEntity, sessionId: string): Promise<TokenSet> {
-    const accessToken = jwt.sign(
+    const accessToken = await this.jwtService.signAsync(
       {
         sub: user.id,
         tenantId: user.tenantId,
@@ -181,13 +183,13 @@ export class AuthService {
         role: user.role,
         sessionId
       },
-      this.configService.getOrThrow<string>('jwt.accessSecret'),
       {
+        secret: this.configService.getOrThrow<string>('jwt.accessSecret'),
         expiresIn: this.configService.get<string>('jwt.accessExpiresIn', '15m')
       }
-    ) as string;
+    );
 
-    const refreshToken = jwt.sign(
+    const refreshToken = await this.jwtService.signAsync(
       {
         sub: user.id,
         tenantId: user.tenantId,
@@ -195,11 +197,11 @@ export class AuthService {
         role: user.role,
         sessionId
       },
-      this.configService.getOrThrow<string>('jwt.refreshSecret'),
       {
+        secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
         expiresIn: this.configService.get<string>('jwt.refreshExpiresIn', '7d')
       }
-    ) as string;
+    );
 
     return {
       accessToken,
@@ -211,13 +213,14 @@ export class AuthService {
   private setRefreshCookie(response: Response, refreshToken: string): void {
     const refreshCookieName = this.configService.get<string>('jwt.refreshCookieName', 'crm_refresh_token');
     const isSecure = this.configService.get<boolean>('jwt.refreshCookieSecure', false);
+    const maxAge = this.getRefreshTtlMs();
 
     response.cookie(refreshCookieName, refreshToken, {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge
     });
   }
 
@@ -236,7 +239,7 @@ export class AuthService {
       secure: this.configService.get<boolean>('jwt.refreshCookieSecure', false),
       sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: this.getRefreshTtlMs()
     });
     return token;
   }
@@ -258,19 +261,13 @@ export class AuthService {
   }
 
   private calculateRefreshExpirationDate(): Date {
-    const raw = this.configService.get<string>('jwt.refreshExpiresIn', '7d');
-    const daysMatch = raw.match(/^(\d+)d$/);
-    if (daysMatch) {
-      const days = Number(daysMatch[1]);
-      return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    }
+    return new Date(Date.now() + this.getRefreshTtlMs());
+  }
 
-    const hoursMatch = raw.match(/^(\d+)h$/);
-    if (hoursMatch) {
-      const hours = Number(hoursMatch[1]);
-      return new Date(Date.now() + hours * 60 * 60 * 1000);
-    }
-
-    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  private getRefreshTtlMs(): number {
+    return parseDurationToMs(
+      this.configService.get<string>('jwt.refreshExpiresIn', '7d'),
+      7 * 24 * 60 * 60 * 1000
+    );
   }
 }

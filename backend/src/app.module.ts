@@ -4,6 +4,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from './config/configuration';
+import { validateEnv } from './config/env.validation';
 import { RedisRateLimitGuard } from './common/guards/redis-rate-limit.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
@@ -32,13 +33,16 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { AuditLogEntity } from './modules/audit/audit-log.entity';
 import { UserEntity } from './modules/users/user.entity';
 import { UsersModule } from './modules/users/users.module';
+import { HealthService } from './health.service';
 
 // Root application module composes infrastructure and business modules.
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [configuration]
+      cache: true,
+      load: [configuration],
+      validate: validateEnv
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -90,7 +94,7 @@ import { UsersModule } from './modules/users/users.module';
     CommentsModule
   ],
   controllers: [HealthController],
-  providers: [
+  providers: [HealthService,
     {
       provide: APP_GUARD,
       useClass: RedisRateLimitGuard
