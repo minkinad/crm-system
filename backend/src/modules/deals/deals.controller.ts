@@ -21,6 +21,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantAccessGuard } from '../../common/guards/tenant-access.guard';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreateDealDto } from './dto/create-deal.dto';
+import { QueryDealInsightsDto } from './dto/query-deal-insights.dto';
 import { QueryDealsDto } from './dto/query-deals.dto';
 import { UpdateDealDto } from './dto/update-deal.dto';
 import { DealsService } from './deals.service';
@@ -54,6 +55,12 @@ export class DealsController {
   @Roles(Role.ADMIN, Role.MANAGER)
   exportCsv(@Req() req: Request & { tenantId: string }, @Query() query: QueryDealsDto) {
     return this.dealsService.exportCsv(req.tenantId, query);
+  }
+
+  @Get('analytics/summary')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
+  analytics(@Req() req: Request & { tenantId: string }, @Query() query: QueryDealInsightsDto) {
+    return this.dealsService.getPipelineInsights(req.tenantId, query);
   }
 
   @Get(':id')

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TaskEntity } from '../tasks/task.entity';
 import { DealEntity } from './deal.entity';
 import { DealStageHistoryEntity } from './deal-stage-history.entity';
 import { DealsController } from './deals.controller';
@@ -9,7 +10,7 @@ import { TypeOrmDealsRepository } from './repositories/typeorm-deals.repository'
 
 // Deals module provides pipeline CRUD and historical change tracking.
 @Module({
-  imports: [TypeOrmModule.forFeature([DealEntity, DealStageHistoryEntity])],
+  imports: [TypeOrmModule.forFeature([DealEntity, DealStageHistoryEntity, TaskEntity])],
   controllers: [DealsController],
   providers: [
     DealsService,
