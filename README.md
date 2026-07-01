@@ -115,7 +115,12 @@ CRM-system/
 
 ### `deals` (CRUD + pipeline + history + CSV)
 - Файлы: `backend/src/modules/deals/*`.
-- Роль: воронка продаж, стадии, история переходов, фильтрация и экспорт.
+- Роль: воронка продаж, стадии, история переходов, фильтрация, экспорт и управленческая аналитика.
+
+### `deals analytics` (sales cockpit)
+- Endpoint: `GET /api/v1/deals/analytics/summary`.
+- Роль: сводка по стадиям, weighted forecast по валютам, risk counters и список next actions.
+- Зачем добавлено: современные CRM конкурируют не только CRUD-моделью, а управлением pipeline health, forecast accuracy и приоритизацией follow-up. Cockpit использует уже существующие сделки и задачи, поэтому не требует миграций схемы.
 
 ### `accounts`
 - Файлы: `backend/src/modules/accounts/*`.
@@ -158,7 +163,17 @@ CRM-system/
 - `frontend/src/api/http.ts`: JWT + tenant + csrf headers, auto-refresh on 401.
 - `frontend/src/pages/LoginPage.tsx`, `RegisterPage.tsx`: auth flows.
 - `frontend/src/components/ProtectedRoute.tsx`: защита роутов.
-- `frontend/src/pages/DashboardPage.tsx`: пример защищённого tenant-aware экрана.
+- `frontend/src/pages/DashboardPage.tsx`: защищённый sales cockpit с forecast, pipeline health, risks, next actions, tasks и accounts snapshot.
+
+## 5.1) Конкурентная планка
+
+Изучены основные паттерны Salesforce Sales Cloud, HubSpot Sales Hub, Pipedrive и Zoho CRM/Zia: визуальная воронка, прогноз выручки, AI/assistant-style подсказки, автоматизация follow-up и управленческие dashboards. В этот этап добавлены базовые возможности того же класса без внешней AI-зависимости:
+
+- weighted forecast по стадиям;
+- pipeline summary по валютам;
+- risk counters: stale deals, просроченные даты закрытия, сделки без открытого follow-up;
+- next actions для менеджера;
+- плотный операционный dashboard вместо технического demo-экрана.
 
 ## 6) Docker и запуск
 

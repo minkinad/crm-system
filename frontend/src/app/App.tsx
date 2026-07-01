@@ -21,7 +21,17 @@ const theme = createTheme({
     }
   },
   shape: {
-    borderRadius: 12
+    borderRadius: 8
+  },
+  typography: {
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    h4: {
+      fontWeight: 700
+    },
+    h6: {
+      fontWeight: 700
+    }
   }
 });
 
