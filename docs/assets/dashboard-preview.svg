@@ -1,0 +1,255 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1440"
+  height="900"
+  viewBox="0 0 1440 900"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">CRM System sales cockpit</title>
+  <desc id="description">
+    Dashboard preview with forecast, sales risks, pipeline, next actions, tasks,
+    and accounts.
+  </desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow
+        dx="0"
+        dy="6"
+        stdDeviation="10"
+        flood-color="#0f172a"
+        flood-opacity="0.08"
+      />
+    </filter>
+    <style>
+      .ui {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      .title {
+        fill: #0f172a;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .section {
+        fill: #0f172a;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .metric {
+        fill: #0f172a;
+        font-size: 30px;
+        font-weight: 750;
+      }
+      .body {
+        fill: #334155;
+        font-size: 14px;
+      }
+      .muted {
+        fill: #64748b;
+        font-size: 12px;
+      }
+      .label {
+        fill: #475569;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .small {
+        fill: #64748b;
+        font-size: 11px;
+      }
+    </style>
+  </defs>
+
+  <rect width="1440" height="900" rx="18" fill="#f5f7fb" />
+  <rect
+    x="1"
+    y="1"
+    width="1438"
+    height="898"
+    rx="17"
+    fill="none"
+    stroke="#dbe3ef"
+  />
+
+  <g class="ui">
+    <rect x="0" y="0" width="1440" height="78" rx="18" fill="#ffffff" />
+    <rect x="0" y="60" width="1440" height="18" fill="#ffffff" />
+    <line x1="0" y1="78" x2="1440" y2="78" stroke="#dbe3ef" />
+    <rect x="34" y="24" width="30" height="30" rx="8" fill="#0d6efd" />
+    <path d="M42 45h5v-8h5v8h5v-14H42z" fill="#fff" />
+    <text x="78" y="35" class="title">Sales Cockpit</text>
+    <text x="78" y="56" class="muted">
+      Anna Petrova · ADMIN · workspace acme-sales
+    </text>
+    <rect x="1262" y="22" width="64" height="34" rx="9" fill="#eef4ff" />
+    <text x="1278" y="44" class="label" fill="#0d6efd">Refresh</text>
+    <text x="1350" y="44" class="label">Sign out</text>
+
+    <g filter="url(#shadow)">
+      <rect x="32" y="104" width="326" height="126" rx="12" fill="#ffffff" />
+      <rect x="382" y="104" width="326" height="126" rx="12" fill="#ffffff" />
+      <rect x="732" y="104" width="326" height="126" rx="12" fill="#ffffff" />
+      <rect x="1082" y="104" width="326" height="126" rx="12" fill="#ffffff" />
+    </g>
+
+    <text x="54" y="135" class="muted">WEIGHTED FORECAST</text>
+    <circle cx="329" cy="132" r="13" fill="#dcfce7" />
+    <path
+      d="M322 137l5-6 4 3 6-8"
+      fill="none"
+      stroke="#198754"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <text x="54" y="178" class="metric">₽ 8.4M</text>
+    <text x="54" y="205" class="body">Pipeline ₽ 18.7M</text>
+
+    <text x="404" y="135" class="muted">SALES RISKS</text>
+    <circle cx="679" cy="132" r="13" fill="#fff7d6" />
+    <path d="M679 123l9 17h-18z" fill="#e2a500" />
+    <text x="404" y="178" class="metric">12</text>
+    <text x="404" y="205" class="body">Overdue, stale and no follow-up</text>
+
+    <text x="754" y="135" class="muted">TASKS</text>
+    <circle cx="1029" cy="132" r="13" fill="#e7f0ff" />
+    <path
+      d="M1023 132l4 4 8-9"
+      fill="none"
+      stroke="#0d6efd"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    />
+    <text x="754" y="178" class="metric">38</text>
+    <text x="754" y="205" class="body">Latest team activities</text>
+
+    <text x="1104" y="135" class="muted">ACCOUNTS</text>
+    <circle cx="1379" cy="132" r="13" fill="#e5f7ed" />
+    <path
+      d="M1373 139v-14h12v14m-8-10h2m2 0h2m-6 4h2m2 0h2"
+      fill="none"
+      stroke="#198754"
+      stroke-width="2"
+    />
+    <text x="1104" y="178" class="metric">124</text>
+    <text x="1104" y="205" class="body">Active customer base</text>
+
+    <g filter="url(#shadow)">
+      <rect x="32" y="254" width="800" height="350" rx="12" fill="#ffffff" />
+      <rect x="856" y="254" width="552" height="350" rx="12" fill="#ffffff" />
+    </g>
+
+    <text x="56" y="292" class="section">Pipeline &amp; forecast</text>
+    <text x="56" y="315" class="muted">
+      Weighted by current stage probability
+    </text>
+
+    <text x="56" y="362" class="label">LEAD</text>
+    <text x="650" y="362" class="body">18 · ₽ 3.2M</text>
+    <rect x="56" y="376" width="664" height="10" rx="5" fill="#e8edf5" />
+    <rect x="56" y="376" width="250" height="10" rx="5" fill="#70a8ff" />
+    <rect x="742" y="366" width="54" height="27" rx="13" fill="#eef4ff" />
+    <text x="760" y="384" class="small">10%</text>
+
+    <text x="56" y="429" class="label">QUALIFIED</text>
+    <text x="650" y="429" class="body">12 · ₽ 5.5M</text>
+    <rect x="56" y="443" width="664" height="10" rx="5" fill="#e8edf5" />
+    <rect x="56" y="443" width="410" height="10" rx="5" fill="#4c90fa" />
+    <rect x="742" y="433" width="54" height="27" rx="13" fill="#eef4ff" />
+    <text x="760" y="451" class="small">25%</text>
+
+    <text x="56" y="496" class="label">PROPOSAL</text>
+    <text x="650" y="496" class="body">8 · ₽ 6.1M</text>
+    <rect x="56" y="510" width="664" height="10" rx="5" fill="#e8edf5" />
+    <rect x="56" y="510" width="500" height="10" rx="5" fill="#2e7ded" />
+    <rect x="742" y="500" width="54" height="27" rx="13" fill="#eef4ff" />
+    <text x="760" y="518" class="small">50%</text>
+
+    <text x="56" y="563" class="label">NEGOTIATION</text>
+    <text x="650" y="563" class="body">5 · ₽ 3.9M</text>
+    <rect x="56" y="577" width="664" height="10" rx="5" fill="#e8edf5" />
+    <rect x="56" y="577" width="334" height="10" rx="5" fill="#0d6efd" />
+    <rect x="742" y="567" width="54" height="27" rx="13" fill="#eef4ff" />
+    <text x="760" y="585" class="small">75%</text>
+
+    <text x="880" y="292" class="section">Next actions</text>
+    <text x="880" y="315" class="muted">Deals requiring manager attention</text>
+
+    <rect
+      x="880"
+      y="338"
+      width="504"
+      height="105"
+      rx="10"
+      fill="#fbfcfe"
+      stroke="#e2e8f0"
+    />
+    <text x="900" y="369" class="label">Enterprise renewal</text>
+    <text x="1258" y="369" class="body">₽ 2.4M</text>
+    <rect x="900" y="386" width="98" height="25" rx="12" fill="#e7f0ff" />
+    <text x="916" y="403" class="small">NEGOTIATION</text>
+    <text x="900" y="428" class="muted">
+      Closing overdue · No movement for 14+ days
+    </text>
+
+    <rect
+      x="880"
+      y="459"
+      width="504"
+      height="105"
+      rx="10"
+      fill="#fbfcfe"
+      stroke="#e2e8f0"
+    />
+    <text x="900" y="490" class="label">Northwind expansion</text>
+    <text x="1258" y="490" class="body">₽ 980K</text>
+    <rect x="900" y="507" width="77" height="25" rx="12" fill="#e7f0ff" />
+    <text x="917" y="524" class="small">PROPOSAL</text>
+    <text x="900" y="549" class="muted">No open follow-up task</text>
+
+    <g filter="url(#shadow)">
+      <rect x="32" y="628" width="800" height="238" rx="12" fill="#ffffff" />
+      <rect x="856" y="628" width="552" height="238" rx="12" fill="#ffffff" />
+    </g>
+    <text x="56" y="665" class="section">Tasks</text>
+    <line x1="56" y1="682" x2="808" y2="682" stroke="#e2e8f0" />
+    <text x="56" y="710" class="muted">NAME</text>
+    <text x="416" y="710" class="muted">PRIORITY</text>
+    <text x="550" y="710" class="muted">DUE</text>
+    <text x="700" y="710" class="muted">STATUS</text>
+    <line x1="56" y1="724" x2="808" y2="724" stroke="#eef2f7" />
+    <text x="56" y="752" class="body">Prepare renewal proposal</text>
+    <text x="416" y="752" class="label">HIGH</text>
+    <text x="550" y="752" class="body">24 Aug 2026</text>
+    <text x="700" y="752" class="body">IN PROGRESS</text>
+    <line x1="56" y1="768" x2="808" y2="768" stroke="#eef2f7" />
+    <text x="56" y="796" class="body">Call product champion</text>
+    <text x="416" y="796" class="label">MEDIUM</text>
+    <text x="550" y="796" class="body">26 Aug 2026</text>
+    <text x="700" y="796" class="body">OPEN</text>
+    <line x1="56" y1="812" x2="808" y2="812" stroke="#eef2f7" />
+    <text x="56" y="840" class="body">Review legal comments</text>
+    <text x="416" y="840" class="label">HIGH</text>
+    <text x="550" y="840" class="body">28 Aug 2026</text>
+    <text x="700" y="840" class="body">OPEN</text>
+
+    <text x="880" y="665" class="section">Accounts snapshot</text>
+    <line x1="880" y1="682" x2="1384" y2="682" stroke="#e2e8f0" />
+    <rect x="880" y="704" width="504" height="42" rx="8" fill="#f8fafc" />
+    <text x="898" y="730" class="label">Acme Industries</text>
+    <text x="1268" y="730" class="muted">Manufacturing</text>
+    <rect x="880" y="756" width="504" height="42" rx="8" fill="#f8fafc" />
+    <text x="898" y="782" class="label">Northwind Labs</text>
+    <text x="1312" y="782" class="muted">SaaS</text>
+    <rect x="880" y="808" width="504" height="42" rx="8" fill="#f8fafc" />
+    <text x="898" y="834" class="label">Globex Retail</text>
+    <text x="1300" y="834" class="muted">Retail</text>
+  </g>
+</svg>

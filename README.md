@@ -1,245 +1,397 @@
-# SaaS CRM System (NestJS + React)
+<div align="center">
+  <img src="docs/assets/crm-logo.png" width="132" alt="CRM System logo" />
+  <h1>CRM System</h1>
+  <p><strong>Безопасная multi-tenant CRM для управления воронкой, прогнозом и действиями команды.</strong></p>
+  <p>React sales cockpit · NestJS API · PostgreSQL · Redis · BullMQ · WebSocket</p>
 
-Многопользовательская CRM-платформа, ориентированная на производство, с RBAC, JWT / refresh auth, журналом аудита, программным удалением, управлением версиями API, документами OpenAPI, ограничением скорости Redis / кэшированием, очередями BullMQ и событиями websocket в реальном времени.
+  <p>
+    <a href="https://github.com/minkinad/crm-system/actions/workflows/ci.yml"><img src="https://github.com/minkinad/crm-system/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://github.com/minkinad/crm-system/actions/workflows/codeql.yml"><img src="https://github.com/minkinad/crm-system/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
+    <img src="https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white" alt="Node.js 22" />
+    <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript strict" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0d6efd" alt="MIT license" /></a>
+  </p>
 
-Документация сопровождения: [архитектура](docs/ARCHITECTURE.md), [ADR](docs/adr/README.md), [операционный runbook](docs/operations/runbook.md), [правила участия](CONTRIBUTING.md), [security policy](SECURITY.md) и [инструкции для агентов](AGENTS.md).
+  <p>
+    <a href="#quick-start">Быстрый старт</a> ·
+    <a href="#features">Возможности</a> ·
+    <a href="#architecture">Архитектура</a> ·
+    <a href="#security">Безопасность</a> ·
+    <a href="#faq">FAQ</a> ·
+    <a href="docs/README.md">Документация</a>
+  </p>
+</div>
 
-## 1) Архитектура (диаграмма словами)
+---
 
-Система построена как модульный монорепозиторий:
+CRM System — production-oriented модульный монолит для B2B-продаж. Он объединяет данные по
+клиентам и сделкам, weighted forecast, риски воронки, follow-up задачи, realtime-события и аудит.
+Tenant определяется только проверенной сервером identity, а HTTP API закрыт по умолчанию.
 
-- **Frontend (React + TypeScript)**
-  - SPA-клиент с MUI, Zustand и React Query.
-  - Короткоживущий access token хранится только в памяти, refresh token — в HttpOnly cookie.
-  - Single-flight auto-refresh восстанавливает сессию после перезагрузки без хранения JWT в Web Storage.
+> **Статус:** активная разработка. Security foundation, миграции и CI готовы; перед реальным
+> production-развёртыванием настройте backups, observability, ingress и secret management.
 
-- **Backend API (NestJS, v1)**
-  - Clean/Hexagonal подход: `controller -> service -> repository`.
-  - DTO валидация + sanitization (XSS mitigation).
-  - Secure-by-default pipeline глобальных guards: rate limit → JWT → tenant context → RBAC; публичные маршруты требуют явного `@Public()`.
-  - JWT access + сериализованная refresh rotation с обнаружением reuse и отзывом сессии.
-  - Audit logging через глобальный interceptor.
-  - Soft delete через `DeleteDateColumn` и `softDelete`.
-  - OpenAPI документация на `/api/docs`, включаемая только через `ENABLE_SWAGGER`.
+<a id="screenshots"></a>
 
-- **Data & Infra**
-  - PostgreSQL: основная транзакционная БД.
-  - Redis: rate limiting + cache + BullMQ transport.
-  - BullMQ: фоновые очереди напоминаний задач.
-  - WebSocket (`/crm`): realtime события на комнаты по tenant.
+## Интерфейс
 
-### Почему TypeORM вместо Prisma
+Превью ниже отображают текущую структуру React-экранов с демонстрационными данными.
 
-Выбран **TypeORM** из-за:
-- нативной интеграции с NestJS decorators/modular DI;
-- удобного soft delete (`DeleteDateColumn`);
-- гибкой работы с query builder для фильтрации/поиска;
-- простого внедрения repository pattern.
+### Sales cockpit
 
-## 2) Структура проекта (дерево)
+![Sales cockpit: forecast, pipeline health, next actions, tasks and accounts](docs/assets/dashboard-preview.svg)
 
-```text
-CRM-system/
-├── backend/
-│   ├── src/
-│   │   ├── app.module.ts
-│   │   ├── main.ts
-│   │   ├── health.controller.ts
-│   │   ├── config/
-│   │   ├── common/
-│   │   │   ├── constants/
-│   │   │   ├── decorators/
-│   │   │   ├── dto/
-│   │   │   ├── entities/
-│   │   │   ├── guards/
-│   │   │   ├── interceptors/
-│   │   │   ├── interfaces/
-│   │   │   ├── middleware/
-│   │   │   ├── pipes/
-│   │   │   └── utils/
-│   │   ├── database/
-│   │   └── modules/
-│   │       ├── auth/
-│   │       ├── users/
-│   │       ├── tenants/
-│   │       ├── accounts/
-│   │       ├── contacts/
-│   │       ├── deals/
-│   │       ├── tasks/
-│   │       ├── comments/
-│   │       ├── audit/
-│   │       ├── realtime/
-│   │       └── queues/
-│   ├── Dockerfile
-│   ├── .env.example
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── api/
-│   │   ├── auth/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── shared/
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── .env.example
-│   └── package.json
-├── docker-compose.yml
-└── .env.example
+<details>
+  <summary><strong>Экран входа</strong></summary>
+  <br />
+  <img src="docs/assets/auth-preview.svg" alt="Tenant-aware CRM login" width="100%" />
+</details>
+
+<a id="features"></a>
+
+## Возможности
+
+| Область          | Что реализовано                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| Sales cockpit    | Weighted forecast, pipeline summary по валютам, risk counters и next actions         |
+| CRM data         | Accounts, contacts, deals, история стадий, задачи и комментарии                      |
+| Командная работа | Роли Admin / Manager / Sales / Viewer, realtime tenant rooms, reminders через BullMQ |
+| Поиск и обмен    | Фильтрация, пагинация, CSV-экспорт контактов и сделок                                |
+| Multi-tenancy    | Server-owned tenant context и tenant predicate на persistence boundary               |
+| Сессии           | Короткий access JWT в памяти, rotated refresh cookie, reuse detection и отзыв сессий |
+| Governance       | Audit trail, request IDs, ADR, runbook, security policy и agent guides               |
+| Operations       | Readiness/liveness, Docker health checks, migrations и graceful shutdown             |
+
+### Для менеджера продаж
+
+- прогноз выручки с вероятностью по каждой стадии;
+- быстрый обзор stale и просроченных сделок;
+- приоритизация сделок без открытого follow-up;
+- единый экран задач, accounts snapshot и следующих действий;
+- история переходов сделки и оперативные realtime-обновления.
+
+### Для инженерной команды
+
+- strict TypeScript на frontend и backend;
+- NestJS-модули с явными application services и repository ports;
+- глобальная цепочка guards: rate limit → JWT → tenant context → RBAC;
+- PostgreSQL как source of truth, Redis для rate limits, cache versions и BullMQ;
+- CI, CodeQL, dependency review, npm audit и Dependabot.
+
+<a id="architecture"></a>
+
+## Архитектура
+
+```mermaid
+flowchart LR
+  Browser[React SPA] -->|HTTPS / REST| API[NestJS API]
+  Browser -->|WSS + access JWT| Realtime[Socket.IO gateway]
+  API --> Guards[Rate limit → JWT → Tenant → RBAC]
+  Guards --> Modules[Domain modules]
+  Realtime --> Sessions[Sessions module]
+  Modules --> PostgreSQL[(PostgreSQL 16)]
+  Modules --> Redis[(Redis 7)]
+  Modules --> Queue[BullMQ]
+  Queue --> Redis
 ```
 
-## 3) Реализованные backend-модули
+Проект остаётся модульным монолитом: это сохраняет локальные транзакции и простой deployment,
+но границы доменов уже оформлены для будущего разделения. Например, `deals` читает активность
+задач через отдельный port, а session persistence принадлежит только модулю `sessions`.
 
-### `base entity`
-- Файлы: `backend/src/common/entities/base.entity.ts`, `backend/src/common/entities/tenant-scoped.entity.ts`.
-- Роль: единая модель `id + timestamps + soft delete` и обязательный `tenantId` для tenant-scoped данных.
+```text
+crm-system/
+├── backend/                 NestJS API и background processor
+│   └── src/
+│       ├── common/          Guards, middleware, pipes, filters
+│       ├── database/        Redis lifecycle, TypeORM datasource, migrations
+│       └── modules/         Auth, sessions, CRM domains, audit, queues, realtime
+├── frontend/                React SPA, auth state, API client, pages
+├── docs/
+│   ├── adr/                 Architecture Decision Records
+│   ├── assets/              README visuals
+│   └── operations/          Production runbook
+└── docker-compose.yml       PostgreSQL, Redis, backend и frontend
+```
 
-### `tenants`
-- Файлы: `backend/src/modules/tenants/*`.
-- Роль: изоляция SaaS-workspace и self-service настройки текущего tenant через `/tenants/current`.
+Подробности: [Architecture](docs/ARCHITECTURE.md) · [ADR](docs/adr/README.md).
 
-### `roles & guards`
-- Файлы: `backend/src/common/constants/roles.ts`, `backend/src/common/guards/roles.guard.ts`, `backend/src/common/decorators/roles.decorator.ts`, `backend/src/common/guards/tenant-access.guard.ts`.
-- Роль: RBAC и защита от cross-tenant access.
+### Технологии
 
-### `users`
-- Файлы: `backend/src/modules/users/*`.
-- Роль: управление пользователями tenant, ролями и аккаунт-статусом.
+| Слой     | Стек                                               |
+| -------- | -------------------------------------------------- |
+| Frontend | React 18, Vite, MUI, React Query, Zustand, Axios   |
+| Backend  | NestJS 11, TypeORM, Passport JWT, Socket.IO        |
+| Data     | PostgreSQL 16, Redis 7                             |
+| Async    | BullMQ delayed jobs                                |
+| Delivery | Docker Compose, nginx, GitHub Actions, Dependabot  |
+| Quality  | ESLint, Jest, TypeScript strict, CodeQL, npm audit |
 
-### `auth`
-- Файлы: `backend/src/modules/auth/*`.
-- Роль: onboarding tenant + admin, login, refresh rotation, logout, cookie-based refresh + CSRF token.
+<a id="quick-start"></a>
 
-### `contacts` (CRUD + search + pagination + CSV)
-- Файлы: `backend/src/modules/contacts/*`.
-- Роль: управление контактами клиентов/лидов.
+## Быстрый старт
 
-### `deals` (CRUD + pipeline + history + CSV)
-- Файлы: `backend/src/modules/deals/*`.
-- Роль: воронка продаж, стадии, история переходов, фильтрация, экспорт и управленческая аналитика.
+### Требования
 
-### `deals analytics` (sales cockpit)
-- Endpoint: `GET /api/v1/deals/analytics/summary`.
-- Роль: сводка по стадиям, weighted forecast по валютам, risk counters и список next actions.
-- Зачем добавлено: современные CRM конкурируют не только CRUD-моделью, а управлением pipeline health, forecast accuracy и приоритизацией follow-up. Cockpit использует уже существующие сделки и задачи, поэтому не требует миграций схемы.
+- Node.js 22 и npm;
+- Docker Engine / Docker Desktop с Compose;
+- свободные порты `3000`, `5173`, `5432` и `6379`.
 
-### `accounts`
-- Файлы: `backend/src/modules/accounts/*`.
-- Роль: компании/аккаунты CRM с Redis-кэшированием списков.
+### Docker Compose
 
-### `tasks`
-- Файлы: `backend/src/modules/tasks/*`.
-- Роль: дедлайны, ответственные, напоминания (BullMQ delayed jobs).
+```bash
+git clone https://github.com/minkinad/crm-system.git
+cd crm-system
+cp .env.example .env
 
-### `comments`
-- Файлы: `backend/src/modules/comments/*`.
-- Роль: обсуждения по сущностям CRM (Account/Contact/Deal/Task).
+# Сначала поднимаем зависимости и применяем схему.
+docker compose up -d postgres redis
+npm --prefix backend ci
+POSTGRES_HOST=127.0.0.1 npm --prefix backend run migration:run
 
-### `audit`
-- Файлы: `backend/src/modules/audit/*`, `backend/src/common/interceptors/audit.interceptor.ts`.
-- Роль: immutable audit trail по mutating API вызовам.
+# Затем запускаем приложение.
+docker compose up -d --build backend frontend
+```
 
-### `realtime`
-- Файлы: `backend/src/modules/realtime/*`.
-- Роль: websocket push событий (`contacts.*`, `deals.*`, `tasks.*`, `comments.*`) по tenant-комнатам.
+После запуска:
 
-### `queues`
-- Файлы: `backend/src/modules/queues/*`.
-- Роль: обработка отложенных задач (напоминания).
+| Сервис    | URL                                       |
+| --------- | ----------------------------------------- |
+| Frontend  | http://localhost:5173                     |
+| REST API  | http://localhost:3000/api/v1              |
+| Swagger   | http://localhost:3000/api/docs            |
+| Readiness | http://localhost:3000/api/v1/health/ready |
+| Liveness  | http://localhost:3000/api/v1/health/live  |
 
-## 4) Безопасность
+Откройте `/register`, создайте workspace и первого администратора. Предустановленных логинов и
+паролей нет.
 
-- RBAC Guard: `RolesGuard`
-- Tenant isolation: tenant берётся только из подписанного access JWT; клиентский tenant id не является источником доверия.
-- Rate limiting (Redis): `RedisRateLimitGuard`
-- Input + DTO validation: `ValidationPipe` + `class-validator`
-- XSS mitigation: `SanitizePipe`
-- CSRF protection: `CsrfMiddleware` (double-submit token, включая refresh endpoint)
-- Password hashing: `bcrypt`
-- Helmet + CORS: `main.ts`
-- WebSocket: JWT + активная серверная сессия + Origin allowlist; room вычисляется только из JWT.
-- Role safety: только Admin управляет ролями; последнего admin и собственную admin-учётную запись нельзя удалить/понизить.
-- Runtime: лимит тела запроса, безопасный `trust proxy`, production Swagger opt-in, non-root/read-only контейнеры.
+> Миграции намеренно не запускаются автоматически каждым API-контейнером. В production их должен
+> выполнять отдельный release job после backup и проверки lock/downtime characteristics.
 
-## 5) Frontend auth (React)
+### Локальная разработка
 
-- `frontend/src/auth/store.ts`: access token и профиль только в памяти; в `localStorage` хранится лишь неавторизующий CSRF nonce.
-- `frontend/src/api/http.ts`: JWT + tenant + csrf headers, auto-refresh on 401.
-- `frontend/src/pages/LoginPage.tsx`, `RegisterPage.tsx`: auth flows.
-- `frontend/src/components/ProtectedRoute.tsx`: защита роутов.
-- `frontend/src/pages/DashboardPage.tsx`: защищённый sales cockpit с forecast, pipeline health, risks, next actions, tasks и accounts snapshot.
+Поднимите PostgreSQL и Redis, затем запустите приложения в отдельных терминалах:
 
-## 5.1) Конкурентная планка
+```bash
+docker compose up -d postgres redis
 
-Изучены основные паттерны Salesforce Sales Cloud, HubSpot Sales Hub, Pipedrive и Zoho CRM/Zia: визуальная воронка, прогноз выручки, AI/assistant-style подсказки, автоматизация follow-up и управленческие dashboards. В этот этап добавлены базовые возможности того же класса без внешней AI-зависимости:
+cp backend/.env.example backend/.env
+# Для локального backend установите POSTGRES_HOST=127.0.0.1 и REDIS_HOST=127.0.0.1.
+npm --prefix backend ci
+POSTGRES_HOST=127.0.0.1 npm --prefix backend run migration:run
+POSTGRES_HOST=127.0.0.1 REDIS_HOST=127.0.0.1 npm --prefix backend run start:dev
+```
 
-- weighted forecast по стадиям;
-- pipeline summary по валютам;
-- risk counters: stale deals, просроченные даты закрытия, сделки без открытого follow-up;
-- next actions для менеджера;
-- плотный операционный dashboard вместо технического demo-экрана.
+```bash
+cp frontend/.env.example frontend/.env
+npm --prefix frontend ci
+npm --prefix frontend run dev
+```
 
-Актуальное направление рынка — единый action-oriented workspace: прогноз, приоритизация возможностей, подсказки следующего шага, автоматизация follow-up и данные в одном контексте. Текущий cockpit развивает именно эту основу; следующая продуктовая итерация должна добавлять интеграции и AI только поверх качественных tenant-scoped данных и аудита, а не обходить их.
+### Основные команды
 
-Архитектурные решения сверены с [OWASP API Security Top 10](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/), [OWASP WebSocket Security](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html), [OAuth 2.0 Security BCP (RFC 9700)](https://www.rfc-editor.org/info/rfc9700/) и текущим подходом [HubSpot AI Guided Selling](https://www.hubspot.com/products/sales/ai-guided-selling).
+```bash
+# Backend
+npm --prefix backend run build
+npm --prefix backend run lint
+npm --prefix backend test -- --runInBand
+npm --prefix backend run migration:run
 
-## 6) Docker и запуск
+# Frontend
+npm --prefix frontend run build
 
-1. Скопируйте конфиги:
-   - `cp .env.example .env`
-2. Запустите:
-   - `docker compose up --build`
-3. Доступ:
-   - Frontend: `http://localhost:5173`
-   - Backend: `http://localhost:3000`
-   - OpenAPI при `ENABLE_SWAGGER=true`: `http://localhost:3000/api/docs`
-   - Readiness: `http://localhost:3000/api/v1/health/ready`
-   - Liveness: `http://localhost:3000/api/v1/health/live`
+# Dependency security
+npm --prefix backend audit --audit-level=high
+npm --prefix frontend audit --audit-level=high
+```
 
-## 6.1) Quality Gates
+<a id="configuration"></a>
 
-- Backend build: `cd backend && npm run build`
-- Backend lint: `cd backend && npm run lint`
-- Backend tests: `cd backend && npm test -- --runInBand`
-- Frontend build: `cd frontend && npm run build`
+## Конфигурация
 
-В репозиторий добавлен workflow `.github/workflows/ci.yml`, который прогоняет эти проверки на `push` и `pull_request`.
+Полный шаблон находится в [.env.example](.env.example). Наиболее важные параметры:
 
-## 6.2) Миграции
+| Переменная              | Назначение                              | Production requirement              |
+| ----------------------- | --------------------------------------- | ----------------------------------- |
+| `JWT_ACCESS_SECRET`     | Подпись коротких access JWT             | Уникальный secret ≥ 32 bytes        |
+| `JWT_REFRESH_SECRET`    | Подпись refresh JWT                     | Другой уникальный secret ≥ 32 bytes |
+| `REFRESH_COOKIE_SECURE` | Передача refresh cookie только по HTTPS | `true`                              |
+| `CORS_ORIGINS`          | Разрешённые frontend origins            | Только точные HTTPS origins         |
+| `REDIS_PASSWORD`        | Защита Redis                            | Не менее 16 символов                |
+| `ENABLE_SWAGGER`        | Публикация OpenAPI UI                   | `false`                             |
+| `TRUST_PROXY_HOPS`      | Число доверенных reverse proxies        | Точная topology-specific настройка  |
+| `REQUEST_BODY_LIMIT`    | Максимальный размер тела HTTP-запроса   | Минимально необходимое значение     |
 
-- Генерация миграции: `cd backend && npm run migration:generate -- src/database/migrations/<MigrationName>`
-- Применение миграций: `cd backend && npm run migration:run`
+Backend валидирует конфигурацию при старте и отклоняет небезопасные production defaults.
 
-В проект добавлена базовая миграция `backend/src/database/migrations/1778412012813-InitialSchema.ts`, чтобы схема БД больше не зависела от ручного создания таблиц.
+<a id="security"></a>
 
-## 7) Деплой frontend на GitHub Pages
+## Безопасность
 
-Важно: GitHub Pages хостит только **статический frontend**. Backend (NestJS/Postgres/Redis) нужно развернуть отдельно (например, Render/Railway/Fly.io/VPS).
+```mermaid
+sequenceDiagram
+  participant UI as Browser
+  participant API as NestJS API
+  participant DB as PostgreSQL
+  UI->>API: Login + tenant slug
+  API->>DB: Resolve tenant and user
+  API-->>UI: Access JWT + HttpOnly refresh cookie
+  UI->>API: Request + Bearer JWT + CSRF header
+  API->>API: Rate limit → JWT → tenant → RBAC
+  API->>DB: Query with verified tenantId
+  DB-->>API: Tenant-scoped result
+  API-->>UI: Response + request ID
+```
 
-Что уже добавлено:
-- workflow: `.github/workflows/deploy-pages.yml`;
-- поддержка base path для Pages: `frontend/vite.config.ts`;
-- hash-router режим для SPA на Pages: `frontend/src/main.tsx`.
+- доступ к HTTP endpoints запрещён по умолчанию; исключения требуют явного `@Public()`;
+- tenant берётся из проверенного JWT, а не из body, query или пользовательского header;
+- access token живёт только в памяти SPA, refresh token — в scoped HttpOnly cookie;
+- refresh rotation сериализована row lock, повторное использование отзывает сессию;
+- unsafe cookie-backed запросы защищены double-submit CSRF;
+- WebSocket проверяет Origin, JWT, active session и вычисляет tenant room на сервере;
+- DTO whitelist, XSS sanitization, body limits, Helmet и точный CORS включены централизованно;
+- production containers работают non-root, read-only, без Linux capabilities;
+- пароль, token, cookie и request body с персональными данными не должны попадать в логи.
 
-Шаги:
-1. Запушьте проект в GitHub репозиторий.
-2. В репозитории откройте `Settings -> Pages` и выберите `Build and deployment: GitHub Actions`.
-3. В `Settings -> Secrets and variables -> Actions -> Variables` создайте переменную:
-   - `VITE_API_BASE_URL=https://<ваш-backend-домен>/api/v1`
-4. Убедитесь, что деплой идет в ветку `main` (workflow триггерится на push в `main`).
-5. После успешного workflow сайт будет доступен по адресу вида:
-   - `https://<username>.github.io/<repo-name>/`
+Не публикуйте найденные уязвимости в issues — используйте инструкции из
+[SECURITY.md](SECURITY.md).
 
-## API v1
+<a id="api"></a>
 
-Все endpoint'ы версионированы через URI:
-- пример: `GET /api/v1/contacts`
+## API
 
-## Примечания production
+Все маршруты имеют URI versioning и prefix `/api/v1`.
 
-- `synchronize` уже отключен; используйте только миграции.
-- Валидация env теперь блокирует некорректные параметры и placeholder secrets в `production`.
-- В production задайте разные JWT secrets длиной не менее 32 байт, `REFRESH_COOKIE_SECURE=true`, `ENABLE_SWAGGER=false` и точный `CORS_ORIGINS`.
-- Добавлены readiness/liveness endpoints, глобальный error contract, CI quality gates и корректное завершение Redis-клиента.
-- Для следующего этапа рекомендую добавить observability stack: Sentry + Prometheus/Grafana + централизованный log shipping.
+| Группа         | Примеры                                                               |
+| -------------- | --------------------------------------------------------------------- |
+| Auth           | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout` |
+| Tenant & users | `/tenants/current`, `/users`                                          |
+| CRM            | `/accounts`, `/contacts`, `/deals`, `/tasks`, `/comments`             |
+| Analytics      | `GET /deals/analytics/summary`                                        |
+| Governance     | `/audit`                                                              |
+| Health         | `/health/live`, `/health/ready`                                       |
+
+Swagger доступен на `/api/docs`, только когда `ENABLE_SWAGGER=true`. Для production переменная
+обязана быть выключена.
+
+<a id="quality"></a>
+
+## Quality gates
+
+На каждый push и pull request выполняются:
+
+- backend build, ESLint и Jest;
+- frontend TypeScript/Vite build;
+- CodeQL и static analysis;
+- dependency review для pull requests;
+- scheduled high-severity npm audit;
+- Dependabot updates для npm, Docker и GitHub Actions.
+
+Локально проверено: **8 test suites / 22 tests**, backend и frontend production builds,
+high-severity audits без найденных уязвимостей.
+
+<a id="faq"></a>
+
+## FAQ
+
+<details>
+  <summary><strong>Это уже production-ready CRM?</strong></summary>
+  <br />
+  Репозиторий содержит production-oriented security и architecture foundation, но конкретный
+  deployment ещё должен обеспечить TLS ingress, secret manager, encrypted backups, restore drills,
+  metrics, traces, alerting и централизованные логи. Известные риски перечислены в
+  <a href="docs/ARCHITECTURE.md">архитектурном документе</a>.
+</details>
+
+<details>
+  <summary><strong>Tenant slug в форме входа — это источник авторизации?</strong></summary>
+  <br />
+  Нет. Slug нужен только для поиска workspace во время login. После аутентификации единственным
+  доверенным tenant context становится claim подписанного JWT; persistence queries повторно
+  ограничиваются по <code>tenantId</code>.
+</details>
+
+<details>
+  <summary><strong>Где браузер хранит JWT?</strong></summary>
+  <br />
+  Access JWT хранится только в памяти Zustand store. Refresh JWT недоступен JavaScript и находится
+  в HttpOnly cookie. В browser storage допускается только неавторизующий CSRF nonce.
+</details>
+
+<details>
+  <summary><strong>Почему TypeORM, а не Prisma?</strong></summary>
+  <br />
+  Проект использует NestJS DI, repository ports, soft delete и сложные QueryBuilder-агрегации.
+  TypeORM хорошо ложится на эти требования и позволяет явно контролировать tenant predicates и
+  транзакции. Замена ORM не является архитектурной целью сама по себе.
+</details>
+
+<details>
+  <summary><strong>Почему модульный монолит, а не микросервисы?</strong></summary>
+  <br />
+  CRM-домены пока часто разделяют tenant identity и транзакции. Один deployable unit уменьшает
+  операционную сложность, а явные ports и ownership сохраняют путь к будущему выделению модулей,
+  когда появится независимый scaling profile. Решение зафиксировано в
+  <a href="docs/adr/0001-modular-monolith.md">ADR-0001</a>.
+</details>
+
+<details>
+  <summary><strong>Почему Swagger не открывается?</strong></summary>
+  <br />
+  Проверьте <code>ENABLE_SWAGGER=true</code> и адрес <code>/api/docs</code>. В production Swagger
+  специально запрещён environment validation.
+</details>
+
+<details>
+  <summary><strong>Можно ли разместить frontend на GitHub Pages?</strong></summary>
+  <br />
+  Да, Vite поддерживает configurable base path и hash router. Но Pages размещает только статический
+  frontend: NestJS, PostgreSQL и Redis всё равно требуют отдельного HTTPS deployment, а
+  <code>VITE_API_BASE_URL</code> должен указывать на него.
+</details>
+
+<details>
+  <summary><strong>Есть ли тестовый логин?</strong></summary>
+  <br />
+  Нет. Откройте <code>/register</code> и создайте новый tenant с первым Admin. Это исключает
+  небезопасные default credentials.
+</details>
+
+<a id="roadmap"></a>
+
+## Roadmap
+
+- PostgreSQL integration и migration tests в CI;
+- transactional outbox для надёжной публикации событий;
+- Row-Level Security как дополнительная tenant boundary;
+- Redis adapter для горизонтального Socket.IO fan-out;
+- metrics, traces, dead-letter handling и automated restore drills;
+- workflow automation и внешние интеграции через отдельные ports;
+- permission-aware AI guidance поверх audited CRM read models.
+
+Roadmap описывает направление, а не обещание конкретного срока.
+
+## Документация и участие
+
+| Документ                                         | Назначение                                      |
+| ------------------------------------------------ | ----------------------------------------------- |
+| [Architecture](docs/ARCHITECTURE.md)             | Компоненты, boundaries, flows и известные риски |
+| [ADR index](docs/adr/README.md)                  | Принятые архитектурные решения                  |
+| [Operations runbook](docs/operations/runbook.md) | Deployment, incidents, migration и recovery     |
+| [Security policy](SECURITY.md)                   | Безопасное сообщение об уязвимостях             |
+| [Contributing](CONTRIBUTING.md)                  | Workflow и acceptance criteria                  |
+| [AGENTS.md](AGENTS.md)                           | Инварианты для coding agents и автоматизации    |
+
+Перед pull request прочитайте [CONTRIBUTING.md](CONTRIBUTING.md), добавьте тесты и выполните
+релевантные quality gates. Используйте небольшие Conventional Commits.
+
+## Лицензия
+
+[MIT](LICENSE).
+
+---
+
+<div align="center">
+  <sub>Built as a secure foundation for modern B2B sales operations.</sub>
+</div>
