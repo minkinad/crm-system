@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from 'typeorm';
 import { AppBaseEntity } from '../../common/entities/base.entity';
 
-// Auth session stores hashed refresh token for rotation and revocation.
+// Server-side session record for refresh rotation, revocation, and realtime checks.
 @Entity('auth_sessions')
 @Index(['tenantId', 'userId'])
 export class AuthSessionEntity extends AppBaseEntity {

@@ -17,7 +17,8 @@ import { HealthController } from './health.controller';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { AuthSessionEntity } from './modules/auth/auth-session.entity';
+import { AuthSessionEntity } from './modules/sessions/auth-session.entity';
+import { SessionsModule } from './modules/sessions/sessions.module';
 import { CommentEntity } from './modules/comments/comment.entity';
 import { CommentsModule } from './modules/comments/comments.module';
 import { ContactEntity } from './modules/contacts/contact.entity';
@@ -86,6 +87,7 @@ import { HealthService } from './health.service';
     RealtimeModule,
     QueuesModule,
     AuditModule,
+    SessionsModule,
     TenantsModule,
     AuthModule,
     UsersModule,

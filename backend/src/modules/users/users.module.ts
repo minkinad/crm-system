@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthSessionEntity } from '../auth/auth-session.entity';
+import { SessionsModule } from '../sessions/sessions.module';
 import { UserEntity } from './user.entity';
 import { USERS_REPOSITORY } from './repositories/users.repository.interface';
 import { TypeOrmUsersRepository } from './repositories/typeorm-users.repository';
@@ -9,7 +9,7 @@ import { UsersService } from './users.service';
 
 // Users module wires repository implementation and service layer.
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, AuthSessionEntity])],
+  imports: [TypeOrmModule.forFeature([UserEntity]), SessionsModule],
   controllers: [UsersController],
   providers: [
     UsersService,

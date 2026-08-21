@@ -6,11 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, QueryFailedError } from 'typeorm';
 import { Role } from '../../common/constants/roles';
 import { parseDurationToMs } from '../../common/utils/duration.util';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -18,7 +17,7 @@ import { USERS_REPOSITORY, UsersRepository } from '../users/repositories/users.r
 import { UserEntity } from '../users/user.entity';
 import { TenantsService } from '../tenants/tenants.service';
 import { TenantEntity } from '../tenants/tenant.entity';
-import { AuthSessionEntity } from './auth-session.entity';
+import { SessionsService } from '../sessions/sessions.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -40,8 +39,7 @@ export class AuthService {
     private readonly tenantsService: TenantsService,
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: UsersRepository,
-    @InjectRepository(AuthSessionEntity)
-    private readonly authSessionRepository: Repository<AuthSessionEntity>,
+    private readonly sessionsService: SessionsService,
     private readonly dataSource: DataSource
   ) {}
 
@@ -133,33 +131,15 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const rotation = await this.authSessionRepository.manager.transaction(async (manager) => {
-      const repository = manager.getRepository(AuthSessionEntity);
-      const session = await repository
-        .createQueryBuilder('session')
-        .addSelect('session.refreshTokenHash')
-        .setLock('pessimistic_write')
-        .where('session.id = :id', { id: payload.sessionId })
-        .andWhere('session.userId = :userId', { userId: payload.sub })
-        .andWhere('session.tenantId = :tenantId', { tenantId: payload.tenantId })
-        .getOne();
-
-      if (!session || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
-        return { status: 'invalid' as const };
-      }
-
-      const matches = await bcrypt.compare(payload.refreshToken, session.refreshTokenHash);
-      if (!matches) {
-        session.revokedAt = new Date();
-        await repository.save(session);
-        return { status: 'reuse' as const };
-      }
-
-      const nextTokens = await this.issueTokens(user, session.id);
-      session.refreshTokenHash = await bcrypt.hash(nextTokens.refreshToken, 12);
-      await repository.save(session);
-      return { status: 'rotated' as const, nextTokens };
-    });
+    const rotation = await this.sessionsService.rotate(
+      {
+        sessionId: payload.sessionId,
+        userId: payload.sub,
+        tenantId: payload.tenantId
+      },
+      payload.refreshToken,
+      (sessionId) => this.issueTokens(user, sessionId)
+    );
 
     if (rotation.status !== 'rotated') {
       this.clearAuthCookies(response);
@@ -170,11 +150,11 @@ export class AuthService {
       );
     }
 
-    this.setRefreshCookie(response, rotation.nextTokens.refreshToken);
+    this.setRefreshCookie(response, rotation.value.refreshToken);
     const csrfToken = this.setCsrfCookie(response);
 
     return {
-      accessToken: rotation.nextTokens.accessToken,
+      accessToken: rotation.value.accessToken,
       accessTokenExpiresIn: this.configService.get<string>('jwt.accessExpiresIn', '15m'),
       csrfToken,
       user: this.serializeUser(user)
@@ -182,29 +162,21 @@ export class AuthService {
   }
 
   async logout(userId: string, tenantId: string, sessionId: string, response: Response) {
-    await this.authSessionRepository.update(
-      { id: sessionId, userId, tenantId },
-      { revokedAt: new Date() }
-    );
+    await this.sessionsService.revoke({ sessionId, userId, tenantId });
     this.clearRefreshCookie(response);
     this.clearCsrfCookie(response);
     return { success: true };
   }
 
   private async finishAuthFlow(user: UserEntity, response: Response) {
-    const session = await this.authSessionRepository.save(
-      this.authSessionRepository.create({
-        userId: user.id,
-        tenantId: user.tenantId,
-        refreshTokenHash: '',
-        expiresAt: this.calculateRefreshExpirationDate(),
-        revokedAt: null
-      })
+    const session = await this.sessionsService.create(
+      user.id,
+      user.tenantId,
+      this.calculateRefreshExpirationDate()
     );
 
     const tokens = await this.issueTokens(user, session.id);
-    session.refreshTokenHash = await bcrypt.hash(tokens.refreshToken, 12);
-    await this.authSessionRepository.save(session);
+    await this.sessionsService.bindRefreshToken(session, tokens.refreshToken);
     this.setRefreshCookie(response, tokens.refreshToken);
     const csrfToken = this.setCsrfCookie(response);
 

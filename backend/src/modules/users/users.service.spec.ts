@@ -1,7 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { Repository } from 'typeorm';
 import { Role } from '../../common/constants/roles';
-import { AuthSessionEntity } from '../auth/auth-session.entity';
+import { SessionsService } from '../sessions/sessions.service';
 import { UsersRepository } from './repositories/users.repository.interface';
 import { UserEntity } from './user.entity';
 import { UsersService } from './users.service';
@@ -26,10 +25,10 @@ describe('UsersService security invariants', () => {
     update: jest.fn(),
     softDelete: jest.fn()
   } as unknown as UsersRepository;
-  const authSessionRepository = {
-    update: jest.fn()
-  } as unknown as Repository<AuthSessionEntity>;
-  const service = new UsersService(usersRepository, authSessionRepository);
+  const sessionsService = {
+    revokeAll: jest.fn()
+  } as unknown as SessionsService;
+  const service = new UsersService(usersRepository, sessionsService);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -63,9 +62,6 @@ describe('UsersService security invariants', () => {
       'actor-id'
     );
 
-    expect(authSessionRepository.update).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-id', userId: 'target-id' }),
-      expect.objectContaining({ revokedAt: expect.any(Date) })
-    );
+    expect(sessionsService.revokeAll).toHaveBeenCalledWith('tenant-id', 'target-id');
   });
 });

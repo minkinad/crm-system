@@ -5,11 +5,9 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { IsNull, Repository } from 'typeorm';
 import { Role } from '../../common/constants/roles';
-import { AuthSessionEntity } from '../auth/auth-session.entity';
+import { SessionsService } from '../sessions/sessions.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import {
@@ -24,8 +22,7 @@ export class UsersService {
   constructor(
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: UsersRepository,
-    @InjectRepository(AuthSessionEntity)
-    private readonly authSessionRepository: Repository<AuthSessionEntity>
+    private readonly sessionsService: SessionsService
   ) {}
 
   async create(tenantId: string, dto: CreateUserDto): Promise<UserEntity> {
@@ -83,10 +80,7 @@ export class UsersService {
     }
 
     if (dto.password || dto.isActive === false) {
-      await this.authSessionRepository.update(
-        { tenantId, userId: id, revokedAt: IsNull() },
-        { revokedAt: new Date() }
-      );
+      await this.sessionsService.revokeAll(tenantId, id);
     }
 
     return updated;
@@ -102,10 +96,7 @@ export class UsersService {
       await this.assertAnotherActiveAdminExists(tenantId, id);
     }
 
-    await this.authSessionRepository.update(
-      { tenantId, userId: id, revokedAt: IsNull() },
-      { revokedAt: new Date() }
-    );
+    await this.sessionsService.revokeAll(tenantId, id);
     await this.usersRepository.softDelete(tenantId, id);
   }
 

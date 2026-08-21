@@ -1,8 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
 import { Role } from '../../common/constants/roles';
-import { AuthSessionEntity } from '../auth/auth-session.entity';
+import { SessionsService } from '../sessions/sessions.service';
 import { CrmGateway } from './crm.gateway';
 
 function createSocket(overrides: Record<string, unknown> = {}) {
@@ -36,15 +35,15 @@ describe('CrmGateway', () => {
   const jwtService = {
     verifyAsync: jest.fn().mockResolvedValue(payload)
   } as unknown as JwtService;
-  const repository = {
-    exists: jest.fn().mockResolvedValue(true)
-  } as unknown as Repository<AuthSessionEntity>;
+  const sessionsService = {
+    isActive: jest.fn().mockResolvedValue(true)
+  } as unknown as SessionsService;
 
   beforeEach(() => jest.clearAllMocks());
 
   it('joins only the tenant room encoded in the verified JWT', async () => {
     const socket = createSocket();
-    const gateway = new CrmGateway(configService, jwtService, repository);
+    const gateway = new CrmGateway(configService, jwtService, sessionsService);
 
     await gateway.handleConnection(socket as never);
 
@@ -60,7 +59,7 @@ describe('CrmGateway', () => {
         headers: { origin: 'https://evil.example' }
       }
     });
-    const gateway = new CrmGateway(configService, jwtService, repository);
+    const gateway = new CrmGateway(configService, jwtService, sessionsService);
 
     await gateway.handleConnection(socket as never);
 

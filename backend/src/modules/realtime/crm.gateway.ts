@@ -1,7 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import {
   ConnectedSocket,
   OnGatewayConnection,
@@ -10,9 +9,8 @@ import {
   WebSocketServer
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { IsNull, MoreThan, Repository } from 'typeorm';
 import { Role } from '../../common/constants/roles';
-import { AuthSessionEntity } from '../auth/auth-session.entity';
+import { SessionsService } from '../sessions/sessions.service';
 
 interface AccessPayload {
   sub: string;
@@ -43,22 +41,17 @@ export class CrmGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
-    @InjectRepository(AuthSessionEntity)
-    private readonly authSessionRepository: Repository<AuthSessionEntity>
+    private readonly sessionsService: SessionsService
   ) {}
 
   async handleConnection(@ConnectedSocket() client: Socket): Promise<void> {
     try {
       this.assertAllowedOrigin(client);
       const payload = await this.verifyAccessToken(client);
-      const sessionIsActive = await this.authSessionRepository.exists({
-        where: {
-          id: payload.sessionId,
-          tenantId: payload.tenantId,
-          userId: payload.sub,
-          revokedAt: IsNull(),
-          expiresAt: MoreThan(new Date())
-        }
+      const sessionIsActive = await this.sessionsService.isActive({
+        sessionId: payload.sessionId,
+        tenantId: payload.tenantId,
+        userId: payload.sub
       });
 
       if (!sessionIsActive) {
