@@ -67,6 +67,6 @@
     "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
     "typeorm-ts-node-commonjs": "^0.3.20",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }
