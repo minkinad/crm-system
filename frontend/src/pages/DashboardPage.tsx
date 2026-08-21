@@ -31,69 +31,9 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { apiClient } from '../api/http';
 import { authApi } from '../api/auth.api';
+import { CurrencyValue, dashboardApi } from '../api/dashboard.api';
 import { useAuthStore } from '../auth/store';
-
-interface CurrencyValue {
-  currency: string;
-  value: number;
-}
-
-interface StageSummary {
-  stage: string;
-  probability: number;
-  count: number;
-  valueByCurrency: CurrencyValue[];
-}
-
-interface ForecastTotal {
-  currency: string;
-  pipeline: number;
-  weighted: number;
-}
-
-interface NextAction {
-  id: string;
-  title: string;
-  stage: string;
-  value: number;
-  currency: string;
-  expectedCloseDate?: string | null;
-  priorityScore: number;
-  reasons: string[];
-}
-
-interface DealInsights {
-  generatedAt: string;
-  stageSummary: StageSummary[];
-  forecastByCurrency: ForecastTotal[];
-  riskCounters: {
-    staleDeals: number;
-    overdueCloseDates: number;
-    dealsWithoutOpenTask: number;
-  };
-  nextActions: NextAction[];
-}
-
-interface Account {
-  id: string;
-  name: string;
-  industry?: string | null;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  dueDate?: string | null;
-  status: string;
-  priority: string;
-}
-
-interface Paginated<T> {
-  data: T[];
-  total: number;
-}
 
 const panelSx = {
   p: 2.5,
@@ -137,30 +77,17 @@ export function DashboardPage() {
 
   const insightsQuery = useQuery({
     queryKey: ['deal-insights'],
-    queryFn: async () => {
-      const response = await apiClient.get<DealInsights>('/deals/analytics/summary');
-      return response.data;
-    }
+    queryFn: dashboardApi.getDealInsights
   });
 
   const tasksQuery = useQuery({
     queryKey: ['tasks', 'dashboard'],
-    queryFn: async () => {
-      const response = await apiClient.get<Paginated<Task>>('/tasks', {
-        params: { page: 1, limit: 6 }
-      });
-      return response.data;
-    }
+    queryFn: dashboardApi.getTasks
   });
 
   const accountsQuery = useQuery({
     queryKey: ['accounts', 'dashboard'],
-    queryFn: async () => {
-      const response = await apiClient.get<Paginated<Account>>('/accounts', {
-        params: { page: 1, limit: 5 }
-      });
-      return response.data;
-    }
+    queryFn: dashboardApi.getAccounts
   });
 
   const isLoading = insightsQuery.isLoading || tasksQuery.isLoading || accountsQuery.isLoading;
@@ -247,7 +174,11 @@ export function DashboardPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                lg: 'repeat(4, 1fr)'
+              },
               gap: 2
             }}
           >
@@ -429,7 +360,9 @@ export function DashboardPage() {
                       sx={{ p: 1, borderRadius: 1, bgcolor: 'action.hover' }}
                     >
                       <Typography fontWeight={700}>{account.name}</Typography>
-                      <Typography color="text.secondary">{account.industry ?? 'Без отрасли'}</Typography>
+                      <Typography color="text.secondary">
+                        {account.industry ?? 'Без отрасли'}
+                      </Typography>
                     </Stack>
                   ))
                 ) : (
