@@ -18,9 +18,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<Request>();
 
     const statusCode =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const exceptionResponse =
       exception instanceof HttpException ? exception.getResponse() : undefined;
@@ -30,11 +28,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exceptionResponse
         : Array.isArray((exceptionResponse as { message?: unknown })?.message)
           ? (exceptionResponse as { message: string[] }).message
-          : (exceptionResponse as { message?: string })?.message ?? 'Internal server error';
+          : ((exceptionResponse as { message?: string })?.message ?? 'Internal server error');
 
     if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `${request.method} ${request.url} failed with ${statusCode}`,
+        `${request.method} ${request.path} failed with ${statusCode}`,
         exception instanceof Error ? exception.stack : undefined
       );
     }
@@ -50,7 +48,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           : exception instanceof HttpException
             ? exception.name
             : 'InternalServerError',
-      path: request.url,
+      path: request.path,
       timestamp: new Date().toISOString(),
       requestId: response.getHeader('x-request-id') ?? request.headers['x-request-id'] ?? null
     });
