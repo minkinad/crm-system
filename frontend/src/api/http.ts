@@ -12,6 +12,51 @@ export const apiClient = axios.create({
   withCredentials: true
 });
 
+let refreshPromise: Promise<AuthResponse> | null = null;
+
+function readCookie(name: string): string | null {
+  const prefix = `${encodeURIComponent(name)}=`;
+  const entry = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+  return entry ? decodeURIComponent(entry.slice(prefix.length)) : null;
+}
+
+export function refreshSession(): Promise<AuthResponse> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  const store = useAuthStore.getState();
+  store.setLoading();
+  const csrfCookieName = import.meta.env.VITE_CSRF_COOKIE_NAME ?? 'crm_csrf_token';
+  const csrfToken = store.csrfToken ?? readCookie(csrfCookieName);
+
+  refreshPromise = axios
+    .post<AuthResponse>(
+      `${apiClient.defaults.baseURL}/auth/refresh`,
+      {},
+      {
+        withCredentials: true,
+        headers: csrfToken ? { 'x-csrf-token': csrfToken } : undefined
+      }
+    )
+    .then((response) => {
+      useAuthStore.getState().setSession(response.data);
+      return response.data;
+    })
+    .catch((error: unknown) => {
+      useAuthStore.getState().clearSession();
+      throw error;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+}
+
 function getLoginLocation(): string {
   const basePath = import.meta.env.BASE_URL ?? '/';
   return import.meta.env.VITE_ROUTER_MODE === 'hash'
@@ -20,16 +65,12 @@ function getLoginLocation(): string {
 }
 
 apiClient.interceptors.request.use((config) => {
-  const { accessToken, csrfToken, user } = useAuthStore.getState();
+  const { accessToken, csrfToken } = useAuthStore.getState();
   const headers = AxiosHeaders.from(config.headers);
   config.headers = headers;
 
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
-  }
-
-  if (user?.tenantId) {
-    headers.set('x-tenant-id', user.tenantId);
   }
 
   const method = (config.method ?? 'get').toUpperCase();
@@ -44,29 +85,27 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined;
+    const isCredentialRequest = ['/auth/login', '/auth/register'].some((path) =>
+      originalRequest?.url?.endsWith(path)
+    );
 
-    if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
+    if (
+      !originalRequest ||
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      isCredentialRequest
+    ) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
 
     try {
-      const tenantId = useAuthStore.getState().user?.tenantId;
-      const refreshResponse = await axios.post<AuthResponse>(
-        `${apiClient.defaults.baseURL}/auth/refresh`,
-        {},
-        {
-          withCredentials: true,
-          headers: tenantId ? { 'x-tenant-id': tenantId } : undefined
-        }
-      );
-
-      useAuthStore.getState().setSession(refreshResponse.data);
+      const refreshedSession = await refreshSession();
       const headers = AxiosHeaders.from(originalRequest.headers);
       originalRequest.headers = headers;
-      headers.set('Authorization', `Bearer ${refreshResponse.data.accessToken}`);
-      headers.set('x-csrf-token', refreshResponse.data.csrfToken);
+      headers.set('Authorization', `Bearer ${refreshedSession.accessToken}`);
+      headers.set('x-csrf-token', refreshedSession.csrfToken);
       return apiClient(originalRequest);
     } catch (refreshError) {
       useAuthStore.getState().clearSession();

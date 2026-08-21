@@ -1,37 +1,41 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { AuthResponse, UserProfile } from '../shared/types/auth';
+
+const CSRF_STORAGE_KEY = 'crm-csrf-token';
 
 interface AuthState {
   accessToken: string | null;
   csrfToken: string | null;
   user: UserProfile | null;
+  status: 'idle' | 'loading' | 'authenticated' | 'anonymous';
+  setLoading: () => void;
   setSession: (payload: AuthResponse) => void;
   clearSession: () => void;
 }
 
-// Zustand store keeps minimal auth session state for SPA runtime.
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
+// Credentials stay in memory; the HttpOnly refresh cookie restores the session after reload.
+export const useAuthStore = create<AuthState>()((set) => ({
+  accessToken: null,
+  csrfToken: window.localStorage.getItem(CSRF_STORAGE_KEY),
+  user: null,
+  status: 'idle',
+  setLoading: () => set({ status: 'loading' }),
+  setSession: (payload) => {
+    window.localStorage.setItem(CSRF_STORAGE_KEY, payload.csrfToken);
+    set({
+      accessToken: payload.accessToken,
+      csrfToken: payload.csrfToken,
+      user: payload.user,
+      status: 'authenticated'
+    });
+  },
+  clearSession: () => {
+    window.localStorage.removeItem(CSRF_STORAGE_KEY);
+    set({
       accessToken: null,
       csrfToken: null,
       user: null,
-      setSession: (payload) =>
-        set({
-          accessToken: payload.accessToken,
-          csrfToken: payload.csrfToken,
-          user: payload.user
-        }),
-      clearSession: () =>
-        set({
-          accessToken: null,
-          csrfToken: null,
-          user: null
-        })
-    }),
-    {
-      name: 'crm-auth-session'
-    }
-  )
-);
+      status: 'anonymous'
+    });
+  }
+}));

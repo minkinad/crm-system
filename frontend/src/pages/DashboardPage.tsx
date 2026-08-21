@@ -1,4 +1,5 @@
 import { ReactNode, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -130,6 +131,7 @@ function formatDate(value?: string | null) {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
 
@@ -212,9 +214,12 @@ export function DashboardPage() {
             color="inherit"
             startIcon={<LogoutIcon />}
             onClick={async () => {
-              await authApi.logout();
-              clearSession();
-              window.location.href = '/login';
+              try {
+                await authApi.logout();
+              } finally {
+                clearSession();
+                navigate('/login', { replace: true });
+              }
             }}
           >
             Выйти
@@ -226,7 +231,7 @@ export function DashboardPage() {
         <Stack spacing={2.5}>
           {hasError ? (
             <Alert severity="warning">
-              Часть данных недоступна. Проверьте backend, tenant context и права пользователя.
+              Часть данных недоступна. Проверьте backend и права пользователя.
             </Alert>
           ) : null}
 
