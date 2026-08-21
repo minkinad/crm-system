@@ -1,23 +1,15 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { UuidParam } from '../../common/decorators/uuid-param.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { QueryCommentsDto } from './dto/query-comments.dto';
 
 // Comments API endpoints.
 @ApiTags('Comments')
@@ -28,41 +20,37 @@ export class CommentsController {
   @Post()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
   create(
-    @Req() req: Request & { tenantId: string },
+    @TenantId() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateCommentDto
   ) {
-    return this.commentsService.create(req.tenantId, user.userId, dto);
+    return this.commentsService.create(tenantId, user.userId, dto);
   }
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findByTarget(
-    @Req() req: Request & { tenantId: string },
-    @Query('targetType') targetType: string,
-    @Query('targetId') targetId: string
-  ) {
-    return this.commentsService.findByTarget(req.tenantId, targetType, targetId);
+  findByTarget(@TenantId() tenantId: string, @Query() query: QueryCommentsDto) {
+    return this.commentsService.findByTarget(tenantId, query.targetType, query.targetId);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
   update(
-    @Req() req: Request & { tenantId: string },
+    @TenantId() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @UuidParam() id: string,
     @Body() dto: UpdateCommentDto
   ) {
-    return this.commentsService.update(req.tenantId, id, user.userId, dto);
+    return this.commentsService.update(tenantId, id, user.userId, dto);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
   remove(
-    @Req() req: Request & { tenantId: string },
+    @TenantId() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string
+    @UuidParam() id: string
   ) {
-    return this.commentsService.remove(req.tenantId, id, user.userId);
+    return this.commentsService.remove(tenantId, id, user.userId);
   }
 }

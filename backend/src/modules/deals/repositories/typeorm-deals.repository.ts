@@ -74,7 +74,8 @@ export class TypeOrmDealsRepository implements DealsRepository {
     return this.repository.save(deal);
   }
 
-  async softDelete(tenantId: string, id: string): Promise<void> {
-    await this.repository.softDelete({ tenantId, id });
+  async softDelete(tenantId: string, id: string): Promise<boolean> {
+    const result = await this.repository.softDelete({ tenantId, id });
+    return Boolean(result.affected);
   }
 }

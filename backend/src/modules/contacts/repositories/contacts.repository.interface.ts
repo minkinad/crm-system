@@ -6,10 +6,13 @@ import { UpdateContactDto } from '../dto/update-contact.dto';
 // Contacts persistence abstraction for testability and modularity.
 export interface ContactsRepository {
   create(tenantId: string, dto: CreateContactDto): Promise<ContactEntity>;
-  findAll(tenantId: string, query: QueryContactsDto): Promise<{ data: ContactEntity[]; total: number }>;
+  findAll(
+    tenantId: string,
+    query: QueryContactsDto
+  ): Promise<{ data: ContactEntity[]; total: number }>;
   findById(tenantId: string, id: string): Promise<ContactEntity | null>;
   update(tenantId: string, id: string, dto: UpdateContactDto): Promise<ContactEntity | null>;
-  softDelete(tenantId: string, id: string): Promise<void>;
+  softDelete(tenantId: string, id: string): Promise<boolean>;
 }
 
 // DI token.

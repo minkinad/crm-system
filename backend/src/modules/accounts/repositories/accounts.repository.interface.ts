@@ -6,10 +6,13 @@ import { UpdateAccountDto } from '../dto/update-account.dto';
 // Accounts repository abstraction for clean architecture boundaries.
 export interface AccountsRepository {
   create(tenantId: string, dto: CreateAccountDto): Promise<AccountEntity>;
-  findAll(tenantId: string, query: PaginationQueryDto): Promise<{ data: AccountEntity[]; total: number }>;
+  findAll(
+    tenantId: string,
+    query: PaginationQueryDto
+  ): Promise<{ data: AccountEntity[]; total: number }>;
   findById(tenantId: string, id: string): Promise<AccountEntity | null>;
   update(tenantId: string, id: string, dto: UpdateAccountDto): Promise<AccountEntity | null>;
-  softDelete(tenantId: string, id: string): Promise<void>;
+  softDelete(tenantId: string, id: string): Promise<boolean>;
 }
 
 // DI token for repository implementation.

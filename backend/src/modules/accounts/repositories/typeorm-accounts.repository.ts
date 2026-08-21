@@ -23,9 +23,7 @@ export class TypeOrmAccountsRepository implements AccountsRepository {
     tenantId: string,
     query: PaginationQueryDto
   ): Promise<{ data: AccountEntity[]; total: number }> {
-    const where = query.q
-      ? { tenantId, name: ILike(`%${query.q}%`) }
-      : { tenantId };
+    const where = query.q ? { tenantId, name: ILike(`%${query.q}%`) } : { tenantId };
 
     const [data, total] = await this.repository.findAndCount({
       where,
@@ -50,7 +48,8 @@ export class TypeOrmAccountsRepository implements AccountsRepository {
     return this.repository.save(account);
   }
 
-  async softDelete(tenantId: string, id: string): Promise<void> {
-    await this.repository.softDelete({ tenantId, id });
+  async softDelete(tenantId: string, id: string): Promise<boolean> {
+    const result = await this.repository.softDelete({ tenantId, id });
+    return Boolean(result.affected);
   }
 }

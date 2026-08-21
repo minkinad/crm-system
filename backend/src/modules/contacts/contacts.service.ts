@@ -20,7 +20,9 @@ export class ContactsService {
 
   async create(tenantId: string, dto: CreateContactDto) {
     const contact = await this.contactsRepository.create(tenantId, dto);
-    this.realtimeService.publish(tenantId, 'contacts.created', { id: contact.id });
+    this.realtimeService.publish(tenantId, 'contacts.created', {
+      id: contact.id
+    });
     return contact;
   }
 
@@ -36,17 +38,26 @@ export class ContactsService {
     return contact;
   }
 
+  async exists(tenantId: string, id: string): Promise<boolean> {
+    return Boolean(await this.contactsRepository.findById(tenantId, id));
+  }
+
   async update(tenantId: string, id: string, dto: UpdateContactDto) {
     const updated = await this.contactsRepository.update(tenantId, id, dto);
     if (!updated) {
       throw new NotFoundException('Contact not found');
     }
-    this.realtimeService.publish(tenantId, 'contacts.updated', { id: updated.id });
+    this.realtimeService.publish(tenantId, 'contacts.updated', {
+      id: updated.id
+    });
     return updated;
   }
 
   async remove(tenantId: string, id: string) {
-    await this.contactsRepository.softDelete(tenantId, id);
+    const removed = await this.contactsRepository.softDelete(tenantId, id);
+    if (!removed) {
+      throw new NotFoundException('Contact not found');
+    }
     this.realtimeService.publish(tenantId, 'contacts.deleted', { id });
   }
 

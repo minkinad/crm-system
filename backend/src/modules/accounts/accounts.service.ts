@@ -45,6 +45,10 @@ export class AccountsService {
     return account;
   }
 
+  async exists(tenantId: string, id: string): Promise<boolean> {
+    return Boolean(await this.accountsRepository.findById(tenantId, id));
+  }
+
   async update(tenantId: string, id: string, dto: UpdateAccountDto) {
     const updated = await this.accountsRepository.update(tenantId, id, dto);
     if (!updated) {
@@ -55,7 +59,10 @@ export class AccountsService {
   }
 
   async remove(tenantId: string, id: string) {
-    await this.accountsRepository.softDelete(tenantId, id);
+    const removed = await this.accountsRepository.softDelete(tenantId, id);
+    if (!removed) {
+      throw new NotFoundException('Account not found');
+    }
     await this.bumpCacheVersion(tenantId);
   }
 

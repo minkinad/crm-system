@@ -72,6 +72,10 @@ export class TasksService {
     return task;
   }
 
+  exists(tenantId: string, id: string): Promise<boolean> {
+    return this.repository.exists({ where: { tenantId, id } });
+  }
+
   async update(tenantId: string, id: string, dto: UpdateTaskDto) {
     const task = await this.findById(tenantId, id);
     Object.assign(task, dto);
@@ -91,7 +95,10 @@ export class TasksService {
   }
 
   async remove(tenantId: string, id: string) {
-    await this.repository.softDelete({ tenantId, id });
+    const result = await this.repository.softDelete({ tenantId, id });
+    if (!result.affected) {
+      throw new NotFoundException('Task not found');
+    }
     await this.taskRemindersQueue.remove(`${tenantId}:${id}`).catch(() => undefined);
     this.realtimeService.publish(tenantId, 'tasks.deleted', { id });
   }

@@ -6,10 +6,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DealStageHistoryEntity } from './deal-stage-history.entity';
 import { DealEntity } from './deal.entity';
 import { DealStage, DealStatus } from './deal.enums';
-import {
-  TASK_ACTIVITY_READER,
-  TaskActivityReader
-} from '../tasks/task-activity.reader';
+import { TASK_ACTIVITY_READER, TaskActivityReader } from '../tasks/task-activity.reader';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { QueryDealInsightsDto } from './dto/query-deal-insights.dto';
@@ -52,7 +49,10 @@ export class DealsService {
         changedBy: actorId ?? null
       })
     );
-    this.realtimeService.publish(tenantId, 'deals.created', { id: deal.id, stage: deal.stage });
+    this.realtimeService.publish(tenantId, 'deals.created', {
+      id: deal.id,
+      stage: deal.stage
+    });
     return deal;
   }
 
@@ -68,12 +68,11 @@ export class DealsService {
     return deal;
   }
 
-  async update(
-    tenantId: string,
-    id: string,
-    dto: UpdateDealDto,
-    actor?: AuthenticatedUser
-  ) {
+  async exists(tenantId: string, id: string): Promise<boolean> {
+    return Boolean(await this.dealsRepository.findById(tenantId, id));
+  }
+
+  async update(tenantId: string, id: string, dto: UpdateDealDto, actor?: AuthenticatedUser) {
     const existing = await this.findById(tenantId, id);
     const updated = await this.dealsRepository.update(tenantId, id, dto);
     if (!updated) {
@@ -101,11 +100,15 @@ export class DealsService {
   }
 
   async remove(tenantId: string, id: string) {
-    await this.dealsRepository.softDelete(tenantId, id);
+    const removed = await this.dealsRepository.softDelete(tenantId, id);
+    if (!removed) {
+      throw new NotFoundException('Deal not found');
+    }
     this.realtimeService.publish(tenantId, 'deals.deleted', { id });
   }
 
   async getStageHistory(tenantId: string, dealId: string) {
+    await this.findById(tenantId, dealId);
     return this.historyRepository.find({
       where: { tenantId, dealId },
       order: { createdAt: 'DESC' }
@@ -123,7 +126,9 @@ export class DealsService {
       .where('deal.tenantId = :tenantId', { tenantId });
 
     if (query.pipeline) {
-      baseQb.andWhere('deal.pipeline = :pipeline', { pipeline: query.pipeline });
+      baseQb.andWhere('deal.pipeline = :pipeline', {
+        pipeline: query.pipeline
+      });
     }
 
     if (query.ownerId) {
@@ -142,7 +147,12 @@ export class DealsService {
       .addSelect('COALESCE(SUM(deal.value), 0)', 'value')
       .groupBy('deal.stage')
       .addGroupBy('deal.currency')
-      .getRawMany<{ stage: DealStage; currency: string; count: number; value: string }>();
+      .getRawMany<{
+        stage: DealStage;
+        currency: string;
+        count: number;
+        value: string;
+      }>();
 
     const openDealIdRows = await openBaseQb
       .clone()
@@ -155,22 +165,12 @@ export class DealsService {
     );
 
     const [staleDeals, overdueCloseDates] = await Promise.all([
-      openBaseQb
-        .clone()
-        .andWhere('deal.updatedAt < :staleSince', { staleSince })
-        .getCount(),
-      openBaseQb
-        .clone()
-        .andWhere('deal.expectedCloseDate < :today', { today })
-        .getCount()
+      openBaseQb.clone().andWhere('deal.updatedAt < :staleSince', { staleSince }).getCount(),
+      openBaseQb.clone().andWhere('deal.expectedCloseDate < :today', { today }).getCount()
     ]);
     const dealsWithoutOpenTask = openDealIds.length - dealIdsWithOpenTasks.size;
 
-    const openDeals = await openBaseQb
-      .clone()
-      .orderBy('deal.updatedAt', 'ASC')
-      .take(250)
-      .getMany();
+    const openDeals = await openBaseQb.clone().orderBy('deal.updatedAt', 'ASC').take(250).getMany();
 
     const stageSummary = Object.values(DealStage).map((stage) => {
       const rows = stageRows.filter((row) => row.stage === stage);
@@ -184,7 +184,10 @@ export class DealsService {
 
     const forecastByCurrency = new Map<string, { pipeline: number; weighted: number }>();
     for (const row of stageRows) {
-      const current = forecastByCurrency.get(row.currency) ?? { pipeline: 0, weighted: 0 };
+      const current = forecastByCurrency.get(row.currency) ?? {
+        pipeline: 0,
+        weighted: 0
+      };
       const value = Number(row.value);
       current.pipeline += value;
       current.weighted += value * STAGE_PROBABILITY[row.stage];

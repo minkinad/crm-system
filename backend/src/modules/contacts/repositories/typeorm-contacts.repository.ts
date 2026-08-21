@@ -28,7 +28,9 @@ export class TypeOrmContactsRepository implements ContactsRepository {
       .where('contact.tenantId = :tenantId', { tenantId });
 
     if (query.accountId) {
-      qb.andWhere('contact.accountId = :accountId', { accountId: query.accountId });
+      qb.andWhere('contact.accountId = :accountId', {
+        accountId: query.accountId
+      });
     }
 
     if (query.q) {
@@ -55,11 +57,7 @@ export class TypeOrmContactsRepository implements ContactsRepository {
     return this.repository.findOne({ where: { tenantId, id } });
   }
 
-  async update(
-    tenantId: string,
-    id: string,
-    dto: UpdateContactDto
-  ): Promise<ContactEntity | null> {
+  async update(tenantId: string, id: string, dto: UpdateContactDto): Promise<ContactEntity | null> {
     const contact = await this.findById(tenantId, id);
     if (!contact) {
       return null;
@@ -69,7 +67,8 @@ export class TypeOrmContactsRepository implements ContactsRepository {
     return this.repository.save(contact);
   }
 
-  async softDelete(tenantId: string, id: string): Promise<void> {
-    await this.repository.softDelete({ tenantId, id });
+  async softDelete(tenantId: string, id: string): Promise<boolean> {
+    const result = await this.repository.softDelete({ tenantId, id });
+    return Boolean(result.affected);
   }
 }

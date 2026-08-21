@@ -9,7 +9,7 @@ export interface DealsRepository {
   findAll(tenantId: string, query: QueryDealsDto): Promise<{ data: DealEntity[]; total: number }>;
   findById(tenantId: string, id: string): Promise<DealEntity | null>;
   update(tenantId: string, id: string, dto: UpdateDealDto): Promise<DealEntity | null>;
-  softDelete(tenantId: string, id: string): Promise<void>;
+  softDelete(tenantId: string, id: string): Promise<boolean>;
 }
 
 // DI token for repository wiring.

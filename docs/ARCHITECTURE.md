@@ -79,12 +79,14 @@ omitting authorization metadata cannot accidentally make a controller anonymous.
 | `contacts` | People and account association | Realtime publisher |
 | `deals` | Pipeline, stages, forecast inputs | Tasks for pipeline insights, realtime publisher |
 | `tasks` | Activities and reminders | BullMQ, realtime publisher |
-| `comments` | Tenant-scoped collaboration | Realtime publisher |
+| `comments` | Tenant-scoped collaboration and polymorphic target validation | CRM target readers, realtime publisher |
 | `audit` | Immutable action history | No feature writes |
 | `realtime` | Authenticated tenant rooms and event delivery | `sessions` for active-session checks |
 
 New cross-module behavior should call an exported application service or consume an explicit port.
 Direct imports of another module's concrete repository create hidden coupling and are prohibited.
+Polymorphic comments resolve their target through exported module services and reject targets that
+do not exist inside the authenticated tenant; comment updates cannot change target or author.
 
 ## 5. Core flows
 

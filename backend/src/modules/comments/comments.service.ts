@@ -5,6 +5,8 @@ import { RealtimeService } from '../realtime/realtime.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { CommentEntity } from './comment.entity';
+import { CommentTargetType } from './comment.enums';
+import { CommentTargetsService } from './comment-targets.service';
 
 // Comments service for collaborative discussion features.
 @Injectable()
@@ -12,10 +14,12 @@ export class CommentsService {
   constructor(
     @InjectRepository(CommentEntity)
     private readonly repository: Repository<CommentEntity>,
-    private readonly realtimeService: RealtimeService
+    private readonly realtimeService: RealtimeService,
+    private readonly commentTargetsService: CommentTargetsService
   ) {}
 
   async create(tenantId: string, authorId: string, dto: CreateCommentDto) {
+    await this.commentTargetsService.assertExists(tenantId, dto.targetType, dto.targetId);
     const comment = await this.repository.save(
       this.repository.create({
         tenantId,
@@ -31,11 +35,12 @@ export class CommentsService {
     return comment;
   }
 
-  findByTarget(tenantId: string, targetType: string, targetId: string) {
+  async findByTarget(tenantId: string, targetType: CommentTargetType, targetId: string) {
+    await this.commentTargetsService.assertExists(tenantId, targetType, targetId);
     return this.repository.find({
       where: {
         tenantId,
-        targetType: targetType as never,
+        targetType,
         targetId
       },
       order: { createdAt: 'DESC' }
@@ -43,18 +48,24 @@ export class CommentsService {
   }
 
   async update(tenantId: string, id: string, authorId: string, dto: UpdateCommentDto) {
-    const comment = await this.repository.findOne({ where: { tenantId, id, authorId } });
+    const comment = await this.repository.findOne({
+      where: { tenantId, id, authorId }
+    });
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
-    Object.assign(comment, dto);
+    comment.body = dto.body;
     const updated = await this.repository.save(comment);
-    this.realtimeService.publish(tenantId, 'comments.updated', { id: updated.id });
+    this.realtimeService.publish(tenantId, 'comments.updated', {
+      id: updated.id
+    });
     return updated;
   }
 
   async remove(tenantId: string, id: string, authorId: string) {
-    const comment = await this.repository.findOne({ where: { tenantId, id, authorId } });
+    const comment = await this.repository.findOne({
+      where: { tenantId, id, authorId }
+    });
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }

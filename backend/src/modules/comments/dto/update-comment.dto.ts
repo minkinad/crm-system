@@ -1,5 +1,8 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateCommentDto } from './create-comment.dto';
+import { IsString, Length } from 'class-validator';
 
-// DTO for comment edits.
-export class UpdateCommentDto extends PartialType(CreateCommentDto) {}
+// A comment can change its body, but never its target or author.
+export class UpdateCommentDto {
+  @IsString()
+  @Length(1, 5000)
+  body!: string;
+}
