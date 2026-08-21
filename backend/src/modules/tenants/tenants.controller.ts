@@ -1,14 +1,8 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Req
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsService } from './tenants.service';
 
@@ -20,16 +14,13 @@ export class TenantsController {
 
   @Get('current')
   @Roles(Role.ADMIN)
-  findCurrent(@Req() req: Request & { tenantId: string }) {
-    return this.tenantsService.findById(req.tenantId);
+  findCurrent(@TenantId() tenantId: string) {
+    return this.tenantsService.findById(tenantId);
   }
 
   @Patch('current')
   @Roles(Role.ADMIN)
-  updateCurrent(
-    @Req() req: Request & { tenantId: string },
-    @Body() dto: UpdateTenantDto
-  ) {
-    return this.tenantsService.update(req.tenantId, dto);
+  updateCurrent(@TenantId() tenantId: string, @Body() dto: UpdateTenantDto) {
+    return this.tenantsService.update(tenantId, dto);
   }
 }

@@ -1,18 +1,10 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Req
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { UuidParam } from '../../common/decorators/uuid-param.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -26,34 +18,34 @@ export class UsersController {
 
   @Post()
   @Roles(Role.ADMIN)
-  create(@Req() req: Request & { tenantId: string }, @Body() dto: CreateUserDto) {
-    return this.usersService.create(req.tenantId, dto);
+  create(@TenantId() tenantId: string, @Body() dto: CreateUserDto) {
+    return this.usersService.create(tenantId, dto);
   }
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER)
-  findAll(@Req() req: Request & { tenantId: string }) {
-    return this.usersService.findAll(req.tenantId);
+  findAll(@TenantId() tenantId: string) {
+    return this.usersService.findAll(tenantId);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN)
   update(
-    @Req() req: Request & { tenantId: string },
-    @Param('id') id: string,
+    @TenantId() tenantId: string,
+    @UuidParam() id: string,
     @Body() dto: UpdateUserDto,
     @CurrentUser() actor: AuthenticatedUser
   ) {
-    return this.usersService.update(req.tenantId, id, dto, actor.userId);
+    return this.usersService.update(tenantId, id, dto, actor.userId);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
   remove(
-    @Req() req: Request & { tenantId: string },
-    @Param('id') id: string,
+    @TenantId() tenantId: string,
+    @UuidParam() id: string,
     @CurrentUser() actor: AuthenticatedUser
   ) {
-    return this.usersService.remove(req.tenantId, id, actor.userId);
+    return this.usersService.remove(tenantId, id, actor.userId);
   }
 }

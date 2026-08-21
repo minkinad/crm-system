@@ -1,19 +1,9 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Header,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { UuidParam } from '../../common/decorators/uuid-param.decorator';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { QueryContactsDto } from './dto/query-contacts.dto';
@@ -27,43 +17,39 @@ export class ContactsController {
 
   @Post()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
-  create(@Req() req: Request & { tenantId: string }, @Body() dto: CreateContactDto) {
-    return this.contactsService.create(req.tenantId, dto);
+  create(@TenantId() tenantId: string, @Body() dto: CreateContactDto) {
+    return this.contactsService.create(tenantId, dto);
   }
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findAll(@Req() req: Request & { tenantId: string }, @Query() query: QueryContactsDto) {
-    return this.contactsService.findAll(req.tenantId, query);
+  findAll(@TenantId() tenantId: string, @Query() query: QueryContactsDto) {
+    return this.contactsService.findAll(tenantId, query);
   }
 
   @Get('export/csv')
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="contacts.csv"')
   @Roles(Role.ADMIN, Role.MANAGER)
-  exportCsv(@Req() req: Request & { tenantId: string }, @Query() query: QueryContactsDto) {
-    return this.contactsService.exportCsv(req.tenantId, query);
+  exportCsv(@TenantId() tenantId: string, @Query() query: QueryContactsDto) {
+    return this.contactsService.exportCsv(tenantId, query);
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findById(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.contactsService.findById(req.tenantId, id);
+  findById(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.contactsService.findById(tenantId, id);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
-  update(
-    @Req() req: Request & { tenantId: string },
-    @Param('id') id: string,
-    @Body() dto: UpdateContactDto
-  ) {
-    return this.contactsService.update(req.tenantId, id, dto);
+  update(@TenantId() tenantId: string, @UuidParam() id: string, @Body() dto: UpdateContactDto) {
+    return this.contactsService.update(tenantId, id, dto);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.MANAGER)
-  remove(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.contactsService.remove(req.tenantId, id);
+  remove(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.contactsService.remove(tenantId, id);
   }
 }

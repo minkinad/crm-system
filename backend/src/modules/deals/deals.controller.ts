@@ -1,20 +1,10 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Header,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { UuidParam } from '../../common/decorators/uuid-param.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { QueryDealInsightsDto } from './dto/query-deal-insights.dto';
@@ -31,59 +21,59 @@ export class DealsController {
   @Post()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
   create(
-    @Req() req: Request & { tenantId: string },
+    @TenantId() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateDealDto
   ) {
-    return this.dealsService.create(req.tenantId, dto, user.userId);
+    return this.dealsService.create(tenantId, dto, user.userId);
   }
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findAll(@Req() req: Request & { tenantId: string }, @Query() query: QueryDealsDto) {
-    return this.dealsService.findAll(req.tenantId, query);
+  findAll(@TenantId() tenantId: string, @Query() query: QueryDealsDto) {
+    return this.dealsService.findAll(tenantId, query);
   }
 
   @Get('export/csv')
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="deals.csv"')
   @Roles(Role.ADMIN, Role.MANAGER)
-  exportCsv(@Req() req: Request & { tenantId: string }, @Query() query: QueryDealsDto) {
-    return this.dealsService.exportCsv(req.tenantId, query);
+  exportCsv(@TenantId() tenantId: string, @Query() query: QueryDealsDto) {
+    return this.dealsService.exportCsv(tenantId, query);
   }
 
   @Get('analytics/summary')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  analytics(@Req() req: Request & { tenantId: string }, @Query() query: QueryDealInsightsDto) {
-    return this.dealsService.getPipelineInsights(req.tenantId, query);
+  analytics(@TenantId() tenantId: string, @Query() query: QueryDealInsightsDto) {
+    return this.dealsService.getPipelineInsights(tenantId, query);
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findById(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.dealsService.findById(req.tenantId, id);
+  findById(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.dealsService.findById(tenantId, id);
   }
 
   @Get(':id/history')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  history(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.dealsService.getStageHistory(req.tenantId, id);
+  history(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.dealsService.getStageHistory(tenantId, id);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
   update(
-    @Req() req: Request & { tenantId: string },
+    @TenantId() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @UuidParam() id: string,
     @Body() dto: UpdateDealDto
   ) {
-    return this.dealsService.update(req.tenantId, id, dto, user);
+    return this.dealsService.update(tenantId, id, dto, user);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.MANAGER)
-  remove(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.dealsService.remove(req.tenantId, id);
+  remove(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.dealsService.remove(tenantId, id);
   }
 }

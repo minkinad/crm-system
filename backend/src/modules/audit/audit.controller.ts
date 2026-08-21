@@ -1,8 +1,8 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { QueryAuditDto } from './dto/query-audit.dto';
 import { AuditService } from './audit.service';
 
@@ -14,7 +14,7 @@ export class AuditController {
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER)
-  findAll(@Req() req: Request & { tenantId: string }, @Query() query: QueryAuditDto) {
-    return this.auditService.findAll(req.tenantId, query);
+  findAll(@TenantId() tenantId: string, @Query() query: QueryAuditDto) {
+    return this.auditService.findAll(tenantId, query);
   }
 }

@@ -1,18 +1,9 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { UuidParam } from '../../common/decorators/uuid-param.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
@@ -26,38 +17,31 @@ export class AccountsController {
 
   @Post()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
-  create(@Req() req: Request & { tenantId: string }, @Body() dto: CreateAccountDto) {
-    return this.accountsService.create(req.tenantId, dto);
+  create(@TenantId() tenantId: string, @Body() dto: CreateAccountDto) {
+    return this.accountsService.create(tenantId, dto);
   }
 
   @Get()
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findAll(
-    @Req() req: Request & { tenantId: string },
-    @Query() query: PaginationQueryDto
-  ) {
-    return this.accountsService.findAll(req.tenantId, query);
+  findAll(@TenantId() tenantId: string, @Query() query: PaginationQueryDto) {
+    return this.accountsService.findAll(tenantId, query);
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES, Role.VIEWER)
-  findById(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.accountsService.findById(req.tenantId, id);
+  findById(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.accountsService.findById(tenantId, id);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.MANAGER, Role.SALES)
-  update(
-    @Req() req: Request & { tenantId: string },
-    @Param('id') id: string,
-    @Body() dto: UpdateAccountDto
-  ) {
-    return this.accountsService.update(req.tenantId, id, dto);
+  update(@TenantId() tenantId: string, @UuidParam() id: string, @Body() dto: UpdateAccountDto) {
+    return this.accountsService.update(tenantId, id, dto);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.MANAGER)
-  remove(@Req() req: Request & { tenantId: string }, @Param('id') id: string) {
-    return this.accountsService.remove(req.tenantId, id);
+  remove(@TenantId() tenantId: string, @UuidParam() id: string) {
+    return this.accountsService.remove(tenantId, id);
   }
 }
