@@ -2,6 +2,8 @@
 
 Многопользовательская CRM-платформа, ориентированная на производство, с RBAC, JWT / refresh auth, журналом аудита, программным удалением, управлением версиями API, документами OpenAPI, ограничением скорости Redis / кэшированием, очередями BullMQ и событиями websocket в реальном времени.
 
+Документация сопровождения: [архитектура](docs/ARCHITECTURE.md), [ADR](docs/adr/README.md), [операционный runbook](docs/operations/runbook.md), [правила участия](CONTRIBUTING.md), [security policy](SECURITY.md) и [инструкции для агентов](AGENTS.md).
+
 ## 1) Архитектура (диаграмма словами)
 
 Система построена как модульный монорепозиторий:
@@ -14,7 +16,7 @@
 - **Backend API (NestJS, v1)**
   - Clean/Hexagonal подход: `controller -> service -> repository`.
   - DTO валидация + sanitization (XSS mitigation).
-  - RBAC (`RolesGuard`) + server-owned tenant context из проверенного JWT (`TenantAccessGuard`).
+  - Secure-by-default pipeline глобальных guards: rate limit → JWT → tenant context → RBAC; публичные маршруты требуют явного `@Public()`.
   - JWT access + сериализованная refresh rotation с обнаружением reuse и отзывом сессии.
   - Audit logging через глобальный interceptor.
   - Soft delete через `DeleteDateColumn` и `softDelete`.
