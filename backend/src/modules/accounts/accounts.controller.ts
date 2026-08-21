@@ -7,17 +7,13 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UseGuards
+  Req
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { TenantAccessGuard } from '../../common/guards/tenant-access.guard';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
@@ -25,7 +21,6 @@ import { UpdateAccountDto } from './dto/update-account.dto';
 // Accounts (companies) management endpoints.
 @ApiTags('Accounts')
 @Controller({ path: 'accounts', version: '1' })
-@UseGuards(JwtAuthGuard, TenantAccessGuard, RolesGuard)
 export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 

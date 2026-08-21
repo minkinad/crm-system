@@ -10,9 +10,9 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import { Role } from '../../common/constants/roles';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -26,12 +26,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Public()
   @RateLimit(3, 60 * 60)
   register(@Body() dto: RegisterDto, @Res({ passthrough: true }) response: Response) {
     return this.authService.register(dto, response);
   }
 
   @Post('login')
+  @Public()
   @HttpCode(200)
   @RateLimit(10, 60)
   login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
@@ -39,6 +41,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Public()
   @HttpCode(200)
   @RateLimit(60, 60)
   @UseGuards(JwtRefreshGuard)
@@ -59,7 +62,6 @@ export class AuthController {
   }
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
   logout(
     @CurrentUser() user: AuthenticatedUser,
     @Res({ passthrough: true }) response: Response

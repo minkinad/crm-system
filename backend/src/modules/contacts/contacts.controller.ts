@@ -8,16 +8,12 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UseGuards
+  Req
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { TenantAccessGuard } from '../../common/guards/tenant-access.guard';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { QueryContactsDto } from './dto/query-contacts.dto';
@@ -26,7 +22,6 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 // Contacts CRUD API with export endpoint.
 @ApiTags('Contacts')
 @Controller({ path: 'contacts', version: '1' })
-@UseGuards(JwtAuthGuard, TenantAccessGuard, RolesGuard)
 export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
 

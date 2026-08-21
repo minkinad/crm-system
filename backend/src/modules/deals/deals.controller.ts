@@ -8,17 +8,13 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UseGuards
+  Req
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { TenantAccessGuard } from '../../common/guards/tenant-access.guard';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { QueryDealInsightsDto } from './dto/query-deal-insights.dto';
@@ -29,7 +25,6 @@ import { DealsService } from './deals.service';
 // Deals API for pipeline management and stage history retrieval.
 @ApiTags('Deals')
 @Controller({ path: 'deals', version: '1' })
-@UseGuards(JwtAuthGuard, TenantAccessGuard, RolesGuard)
 export class DealsController {
   constructor(private readonly dealsService: DealsService) {}
 

@@ -6,17 +6,13 @@ import {
   Param,
   Patch,
   Post,
-  Req,
-  UseGuards
+  Req
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Role } from '../../common/constants/roles';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { TenantAccessGuard } from '../../common/guards/tenant-access.guard';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -25,7 +21,6 @@ import { UsersService } from './users.service';
 // Users API with tenant-scoped RBAC controls.
 @ApiTags('Users')
 @Controller({ path: 'users', version: '1' })
-@UseGuards(JwtAuthGuard, TenantAccessGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

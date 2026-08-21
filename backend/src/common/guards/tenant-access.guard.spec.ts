@@ -1,17 +1,27 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Role } from '../constants/roles';
+import { Public } from '../decorators/public.decorator';
 import { TenantAccessGuard } from './tenant-access.guard';
 
-function contextFor(request: Record<string, unknown>): ExecutionContext {
+@Public()
+class PublicController {}
+
+function contextFor(
+  request: Record<string, unknown>,
+  controller: object = TenantAccessGuard
+): ExecutionContext {
   return {
+    getHandler: () => contextFor,
+    getClass: () => controller,
     switchToHttp: () => ({
       getRequest: () => request
     })
-  } as ExecutionContext;
+  } as unknown as ExecutionContext;
 }
 
 describe('TenantAccessGuard', () => {
-  const guard = new TenantAccessGuard();
+  const guard = new TenantAccessGuard(new Reflector());
 
   it('uses the verified user tenant as the authoritative boundary', () => {
     const request = {
@@ -31,5 +41,9 @@ describe('TenantAccessGuard', () => {
 
   it('rejects requests without an authenticated tenant', () => {
     expect(() => guard.canActivate(contextFor({}))).toThrow(UnauthorizedException);
+  });
+
+  it('does not require tenant context for explicitly public controllers', () => {
+    expect(guard.canActivate(contextFor({}, PublicController))).toBe(true);
   });
 });

@@ -6,6 +6,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
 import { RedisRateLimitGuard } from './common/guards/redis-rate-limit.guard';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { TenantAccessGuard } from './common/guards/tenant-access.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -93,10 +96,23 @@ import { HealthService } from './health.service';
     CommentsModule
   ],
   controllers: [HealthController],
-  providers: [HealthService,
+  providers: [
+    HealthService,
     {
       provide: APP_GUARD,
       useClass: RedisRateLimitGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantAccessGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard
     },
     {
       provide: APP_INTERCEPTOR,

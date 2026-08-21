@@ -1,8 +1,10 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { Public } from './common/decorators/public.decorator';
 import { HealthService } from './health.service';
 
 // Health endpoints expose liveness and dependency readiness for orchestration.
 @Controller({ path: 'health', version: '1' })
+@Public()
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 

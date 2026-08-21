@@ -7,17 +7,13 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UseGuards
+  Req
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/constants/roles';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { TenantAccessGuard } from '../../common/guards/tenant-access.guard';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -26,7 +22,6 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 // Comments API endpoints.
 @ApiTags('Comments')
 @Controller({ path: 'comments', version: '1' })
-@UseGuards(JwtAuthGuard, TenantAccessGuard, RolesGuard)
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
