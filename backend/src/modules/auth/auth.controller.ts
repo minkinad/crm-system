@@ -26,20 +26,21 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @RateLimit(20, 60)
+  @RateLimit(3, 60 * 60)
   register(@Body() dto: RegisterDto, @Res({ passthrough: true }) response: Response) {
     return this.authService.register(dto, response);
   }
 
   @Post('login')
   @HttpCode(200)
-  @RateLimit(30, 60)
+  @RateLimit(10, 60)
   login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     return this.authService.login(dto, response);
   }
 
   @Post('refresh')
   @HttpCode(200)
+  @RateLimit(60, 60)
   @UseGuards(JwtRefreshGuard)
   refresh(
     @Req() req: Request & {

@@ -6,7 +6,11 @@ import { randomUUID } from 'crypto';
 @Injectable()
 export class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
-    const requestId = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
+    const incoming = req.headers['x-request-id'];
+    const requestId =
+      typeof incoming === 'string' && /^[a-zA-Z0-9._:-]{1,128}$/.test(incoming)
+        ? incoming
+        : randomUUID();
     req.headers['x-request-id'] = requestId;
     res.setHeader('x-request-id', requestId);
     next();

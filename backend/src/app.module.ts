@@ -9,7 +9,6 @@ import { RedisRateLimitGuard } from './common/guards/redis-rate-limit.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
-import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { RedisModule } from './database/redis.module';
 import { HealthController } from './health.controller';
 import { AccountsModule } from './modules/accounts/accounts.module';
@@ -107,6 +106,6 @@ import { HealthService } from './health.service';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware, TenantMiddleware, CsrfMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, CsrfMiddleware).forRoutes('{*splat}');
   }
 }

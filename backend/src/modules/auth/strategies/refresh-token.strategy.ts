@@ -11,6 +11,7 @@ interface RefreshPayload {
   email: string;
   role: Role;
   sessionId: string;
+  tokenType: 'refresh';
 }
 
 // Refresh strategy validates long-lived refresh JWT from secure cookie.
@@ -28,7 +29,10 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
       ]),
       ignoreExpiration: false,
       passReqToCallback: true,
-      secretOrKey: configService.getOrThrow<string>('jwt.refreshSecret')
+      secretOrKey: configService.getOrThrow<string>('jwt.refreshSecret'),
+      issuer: configService.getOrThrow<string>('jwt.issuer'),
+      audience: configService.getOrThrow<string>('jwt.audience'),
+      algorithms: ['HS256']
     });
     this.refreshCookieName = refreshCookieName;
   }
@@ -39,8 +43,8 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
   ): Promise<RefreshPayload & { refreshToken: string }> {
     const refreshToken = req.cookies?.[this.refreshCookieName];
 
-    if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token missing');
+    if (!refreshToken || payload.tokenType !== 'refresh') {
+      throw new UnauthorizedException('Refresh token payload is invalid');
     }
 
     return {

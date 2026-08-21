@@ -5,18 +5,19 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
-import { Repository } from 'typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Role } from '../../common/constants/roles';
 import { parseDurationToMs } from '../../common/utils/duration.util';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { USERS_REPOSITORY, UsersRepository } from '../users/repositories/users.repository.interface';
 import { UserEntity } from '../users/user.entity';
 import { TenantsService } from '../tenants/tenants.service';
+import { TenantEntity } from '../tenants/tenant.entity';
 import { AuthSessionEntity } from './auth-session.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -26,6 +27,9 @@ interface TokenSet {
   refreshToken: string;
   sessionId: string;
 }
+
+const DUMMY_PASSWORD_HASH =
+  '$2b$12$riuXY0ZGH7HOASxcHoC/1eD6JU7zz924KlJA6qQY9IuirwJta7I8a';
 
 // Auth service handles onboarding, login, refresh rotation and logout.
 @Injectable()
@@ -37,7 +41,8 @@ export class AuthService {
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: UsersRepository,
     @InjectRepository(AuthSessionEntity)
-    private readonly authSessionRepository: Repository<AuthSessionEntity>
+    private readonly authSessionRepository: Repository<AuthSessionEntity>,
+    private readonly dataSource: DataSource
   ) {}
 
   async register(dto: RegisterDto, response: Response) {
@@ -46,26 +51,46 @@ export class AuthService {
       throw new ConflictException('Tenant slug is already taken');
     }
 
-    const tenant = await this.tenantsService.create({
-      name: dto.tenantName,
-      slug: dto.tenantSlug,
-      isActive: true
-    });
-
-    const createUserDto: CreateUserDto = {
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      email: dto.email,
-      password: dto.password,
-      role: Role.ADMIN
-    };
-
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const admin = await this.usersRepository.create(
-      tenant.id,
-      createUserDto,
-      passwordHash
-    );
+    let admin: UserEntity;
+    try {
+      admin = await this.dataSource.transaction(async (manager) => {
+        const tenant = await manager.getRepository(TenantEntity).save(
+          manager.getRepository(TenantEntity).create({
+            name: dto.tenantName,
+            slug: dto.tenantSlug,
+            isActive: true
+          })
+        );
+        const createUserDto: CreateUserDto = {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          email: dto.email,
+          password: dto.password,
+          role: Role.ADMIN
+        };
+        const { firstName, lastName, email, role } = createUserDto;
+        return manager.getRepository(UserEntity).save(
+          manager.getRepository(UserEntity).create({
+            tenantId: tenant.id,
+            firstName,
+            lastName,
+            email: email.toLowerCase(),
+            role,
+            passwordHash,
+            isActive: true
+          })
+        );
+      });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '23505'
+      ) {
+        throw new ConflictException('Tenant slug is already taken');
+      }
+      throw error;
+    }
 
     return this.finishAuthFlow(admin, response);
   }
@@ -73,11 +98,13 @@ export class AuthService {
   async login(dto: LoginDto, response: Response) {
     const tenant = await this.tenantsService.findBySlug(dto.tenantSlug);
     if (!tenant || !tenant.isActive) {
-      throw new UnauthorizedException('Tenant not found or inactive');
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const user = await this.usersRepository.findByEmail(tenant.id, dto.email);
     if (!user || !user.isActive) {
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -100,39 +127,54 @@ export class AuthService {
     },
     response: Response
   ) {
-    const session = await this.authSessionRepository
-      .createQueryBuilder('session')
-      .addSelect('session.refreshTokenHash')
-      .where('session.id = :id', { id: payload.sessionId })
-      .andWhere('session.userId = :userId', { userId: payload.sub })
-      .andWhere('session.tenantId = :tenantId', { tenantId: payload.tenantId })
-      .andWhere('session.revokedAt IS NULL')
-      .getOne();
-
-    if (!session || session.expiresAt.getTime() < Date.now()) {
-      throw new UnauthorizedException('Refresh session is invalid');
-    }
-
-    const matches = await bcrypt.compare(payload.refreshToken, session.refreshTokenHash);
-    if (!matches) {
-      throw new UnauthorizedException('Refresh token mismatch');
-    }
-
     const user = await this.usersRepository.findById(payload.tenantId, payload.sub);
     if (!user || !user.isActive) {
+      this.clearAuthCookies(response);
       throw new UnauthorizedException('User not found');
     }
 
-    const nextTokens = await this.issueTokens(user, session.id);
+    const rotation = await this.authSessionRepository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(AuthSessionEntity);
+      const session = await repository
+        .createQueryBuilder('session')
+        .addSelect('session.refreshTokenHash')
+        .setLock('pessimistic_write')
+        .where('session.id = :id', { id: payload.sessionId })
+        .andWhere('session.userId = :userId', { userId: payload.sub })
+        .andWhere('session.tenantId = :tenantId', { tenantId: payload.tenantId })
+        .getOne();
 
-    session.refreshTokenHash = await bcrypt.hash(nextTokens.refreshToken, 12);
-    await this.authSessionRepository.save(session);
+      if (!session || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
+        return { status: 'invalid' as const };
+      }
 
-    this.setRefreshCookie(response, nextTokens.refreshToken);
+      const matches = await bcrypt.compare(payload.refreshToken, session.refreshTokenHash);
+      if (!matches) {
+        session.revokedAt = new Date();
+        await repository.save(session);
+        return { status: 'reuse' as const };
+      }
+
+      const nextTokens = await this.issueTokens(user, session.id);
+      session.refreshTokenHash = await bcrypt.hash(nextTokens.refreshToken, 12);
+      await repository.save(session);
+      return { status: 'rotated' as const, nextTokens };
+    });
+
+    if (rotation.status !== 'rotated') {
+      this.clearAuthCookies(response);
+      throw new UnauthorizedException(
+        rotation.status === 'reuse'
+          ? 'Refresh token reuse detected; session revoked'
+          : 'Refresh session is invalid'
+      );
+    }
+
+    this.setRefreshCookie(response, rotation.nextTokens.refreshToken);
     const csrfToken = this.setCsrfCookie(response);
 
     return {
-      accessToken: nextTokens.accessToken,
+      accessToken: rotation.nextTokens.accessToken,
       accessTokenExpiresIn: this.configService.get<string>('jwt.accessExpiresIn', '15m'),
       csrfToken,
       user: this.serializeUser(user)
@@ -181,11 +223,18 @@ export class AuthService {
         tenantId: user.tenantId,
         email: user.email,
         role: user.role,
-        sessionId
+        sessionId,
+        tokenType: 'access'
       },
       {
         secret: this.configService.getOrThrow<string>('jwt.accessSecret'),
-        expiresIn: this.configService.get<string>('jwt.accessExpiresIn', '15m')
+        expiresIn: this.configService.get<string>(
+          'jwt.accessExpiresIn',
+          '15m'
+        ) as JwtSignOptions['expiresIn'],
+        issuer: this.configService.getOrThrow<string>('jwt.issuer'),
+        audience: this.configService.getOrThrow<string>('jwt.audience'),
+        algorithm: 'HS256'
       }
     );
 
@@ -195,11 +244,18 @@ export class AuthService {
         tenantId: user.tenantId,
         email: user.email,
         role: user.role,
-        sessionId
+        sessionId,
+        tokenType: 'refresh'
       },
       {
         secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
-        expiresIn: this.configService.get<string>('jwt.refreshExpiresIn', '7d')
+        expiresIn: this.configService.get<string>(
+          'jwt.refreshExpiresIn',
+          '7d'
+        ) as JwtSignOptions['expiresIn'],
+        issuer: this.configService.getOrThrow<string>('jwt.issuer'),
+        audience: this.configService.getOrThrow<string>('jwt.audience'),
+        algorithm: 'HS256'
       }
     );
 
@@ -219,7 +275,7 @@ export class AuthService {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
-      path: '/',
+      path: this.getRefreshCookiePath(),
       maxAge
     });
   }
@@ -227,7 +283,7 @@ export class AuthService {
   private clearRefreshCookie(response: Response): void {
     const refreshCookieName = this.configService.get<string>('jwt.refreshCookieName', 'crm_refresh_token');
     response.clearCookie(refreshCookieName, {
-      path: '/'
+      path: this.getRefreshCookiePath()
     });
   }
 
@@ -247,6 +303,19 @@ export class AuthService {
   private clearCsrfCookie(response: Response): void {
     const cookieName = this.configService.get<string>('jwt.csrfCookieName', 'crm_csrf_token');
     response.clearCookie(cookieName, { path: '/' });
+  }
+
+  private clearAuthCookies(response: Response): void {
+    this.clearRefreshCookie(response);
+    this.clearCsrfCookie(response);
+  }
+
+  private getRefreshCookiePath(): string {
+    const prefix = this.configService.get<string>('apiPrefix', 'api').replace(/^\/+|\/+$/g, '');
+    const version = this.configService
+      .get<string>('defaultApiVersion', '1')
+      .replace(/^v/i, '');
+    return `/${prefix}/v${version}/auth`;
   }
 
   private serializeUser(user: UserEntity) {

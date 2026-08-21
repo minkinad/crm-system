@@ -12,8 +12,7 @@ export class CsrfMiddleware implements NestMiddleware {
   private readonly safeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
   private readonly ignoredPathSuffixes = new Set([
     '/auth/login',
-    '/auth/register',
-    '/auth/refresh'
+    '/auth/register'
   ]);
 
   constructor(private readonly configService: ConfigService) {}

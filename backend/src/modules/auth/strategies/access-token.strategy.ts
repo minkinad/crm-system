@@ -11,6 +11,7 @@ interface AccessPayload {
   email: string;
   role: Role;
   sessionId: string;
+  tokenType: 'access';
 }
 
 // JWT access token strategy for short-lived stateless authentication.
@@ -20,13 +21,16 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow<string>('jwt.accessSecret')
+      secretOrKey: configService.getOrThrow<string>('jwt.accessSecret'),
+      issuer: configService.getOrThrow<string>('jwt.issuer'),
+      audience: configService.getOrThrow<string>('jwt.audience'),
+      algorithms: ['HS256']
     });
   }
 
   async validate(payload: AccessPayload): Promise<AuthenticatedUser> {
-    if (!payload.tenantId) {
-      throw new UnauthorizedException('Tenant is missing in token payload');
+    if (!payload.tenantId || payload.tokenType !== 'access') {
+      throw new UnauthorizedException('Access token payload is invalid');
     }
 
     return {

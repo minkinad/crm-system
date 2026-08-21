@@ -30,17 +30,10 @@ export class TenantsService {
     return this.tenantRepository.findOne({ where: { slug } });
   }
 
-  async findAll(): Promise<TenantEntity[]> {
-    return this.tenantRepository.find();
-  }
-
   async update(id: string, dto: UpdateTenantDto): Promise<TenantEntity> {
     const tenant = await this.findById(id);
     Object.assign(tenant, dto);
     return this.tenantRepository.save(tenant);
   }
 
-  async softDelete(id: string): Promise<void> {
-    await this.tenantRepository.softDelete(id);
-  }
 }

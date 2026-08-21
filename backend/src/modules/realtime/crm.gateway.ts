@@ -1,4 +1,7 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
 import {
   ConnectedSocket,
   OnGatewayConnection,
@@ -7,6 +10,19 @@ import {
   WebSocketServer
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { IsNull, MoreThan, Repository } from 'typeorm';
+import { Role } from '../../common/constants/roles';
+import { AuthSessionEntity } from '../auth/auth-session.entity';
+
+interface AccessPayload {
+  sub: string;
+  tenantId: string;
+  email: string;
+  role: Role;
+  sessionId: string;
+  tokenType: 'access';
+  exp: number;
+}
 
 // Socket gateway broadcasts tenant-scoped realtime CRM events.
 @WebSocketGateway({
@@ -14,7 +30,9 @@ import { Server, Socket } from 'socket.io';
   cors: {
     origin: true,
     credentials: true
-  }
+  },
+  perMessageDeflate: false,
+  maxHttpBufferSize: 64 * 1024
 })
 export class CrmGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -22,18 +40,49 @@ export class CrmGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(CrmGateway.name);
 
-  handleConnection(@ConnectedSocket() client: Socket): void {
-    const tenantId = this.extractTenantId(client);
-    if (!tenantId) {
-      client.disconnect(true);
-      return;
-    }
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
+    @InjectRepository(AuthSessionEntity)
+    private readonly authSessionRepository: Repository<AuthSessionEntity>
+  ) {}
 
-    client.join(this.toTenantRoom(tenantId));
-    this.logger.debug(`Socket connected: ${client.id}, tenant=${tenantId}`);
+  async handleConnection(@ConnectedSocket() client: Socket): Promise<void> {
+    try {
+      this.assertAllowedOrigin(client);
+      const payload = await this.verifyAccessToken(client);
+      const sessionIsActive = await this.authSessionRepository.exists({
+        where: {
+          id: payload.sessionId,
+          tenantId: payload.tenantId,
+          userId: payload.sub,
+          revokedAt: IsNull(),
+          expiresAt: MoreThan(new Date())
+        }
+      });
+
+      if (!sessionIsActive) {
+        throw new Error('Session is inactive');
+      }
+
+      client.data.user = payload;
+      await client.join(this.toTenantRoom(payload.tenantId));
+      const expiresInMs = Math.max(payload.exp * 1000 - Date.now(), 0);
+      const expirationTimer = setTimeout(() => client.disconnect(true), expiresInMs);
+      expirationTimer.unref();
+      client.data.expirationTimer = expirationTimer;
+      this.logger.debug(`Socket connected: ${client.id}, tenant=${payload.tenantId}`);
+    } catch {
+      this.logger.warn(`Rejected unauthenticated socket: ${client.id}`);
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(@ConnectedSocket() client: Socket): void {
+    const expirationTimer = client.data.expirationTimer as NodeJS.Timeout | undefined;
+    if (expirationTimer) {
+      clearTimeout(expirationTimer);
+    }
     this.logger.debug(`Socket disconnected: ${client.id}`);
   }
 
@@ -41,12 +90,39 @@ export class CrmGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(this.toTenantRoom(tenantId)).emit(event, payload);
   }
 
-  private extractTenantId(client: Socket): string | null {
-    const fromAuth = client.handshake.auth?.tenantId;
-    const fromQuery = client.handshake.query?.tenantId;
-    const fromHeader = client.handshake.headers['x-tenant-id'];
+  private assertAllowedOrigin(client: Socket): void {
+    const origin = client.handshake.headers.origin;
+    const allowedOrigins = this.configService.get<string[]>('corsOrigins', []);
 
-    return String(fromAuth ?? fromQuery ?? fromHeader ?? '').trim() || null;
+    if (origin && !allowedOrigins.includes(origin)) {
+      throw new Error('Origin is not allowed');
+    }
+  }
+
+  private async verifyAccessToken(client: Socket): Promise<AccessPayload> {
+    const accessToken = client.handshake.auth?.accessToken;
+    if (typeof accessToken !== 'string' || accessToken.length === 0) {
+      throw new Error('Access token is missing');
+    }
+
+    const payload = await this.jwtService.verifyAsync<AccessPayload>(accessToken, {
+      secret: this.configService.getOrThrow<string>('jwt.accessSecret'),
+      issuer: this.configService.getOrThrow<string>('jwt.issuer'),
+      audience: this.configService.getOrThrow<string>('jwt.audience'),
+      algorithms: ['HS256']
+    });
+
+    if (
+      payload.tokenType !== 'access' ||
+      !payload.sub ||
+      !payload.tenantId ||
+      !payload.sessionId ||
+      !payload.exp
+    ) {
+      throw new Error('Access token payload is invalid');
+    }
+
+    return payload;
   }
 
   private toTenantRoom(tenantId: string): string {

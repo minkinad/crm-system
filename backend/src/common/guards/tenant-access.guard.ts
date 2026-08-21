@@ -1,23 +1,28 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
-  Injectable
+  Injectable,
+  UnauthorizedException
 } from '@nestjs/common';
+import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 
-// Enforces that authenticated user operates strictly within its tenant boundary.
+type TenantRequest = {
+  user?: AuthenticatedUser;
+  tenantId?: string;
+};
+
+// Derives the tenant boundary from the verified JWT instead of client-controlled input.
 @Injectable()
 export class TenantAccessGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    if (!request.user || !request.tenantId) {
-      return true;
+    const request = context.switchToHttp().getRequest<TenantRequest>();
+    const user = request.user;
+
+    if (!user?.tenantId) {
+      throw new UnauthorizedException('Authenticated tenant context is missing');
     }
 
-    if (request.user.tenantId !== request.tenantId) {
-      throw new ForbiddenException('Tenant isolation violation detected');
-    }
-
+    request.tenantId = user.tenantId;
     return true;
   }
 }
