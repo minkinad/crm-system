@@ -1,5 +1,6 @@
-import { IsEmail, IsEnum, IsOptional, IsString, Length, MinLength } from 'class-validator';
+import { IsByteLength, IsEmail, IsEnum, IsOptional, IsString, Length } from 'class-validator';
 import { Role } from '../../../common/constants/roles';
+import { PASSWORD_MAX_BYTES, PASSWORD_MIN_BYTES } from '../../../common/constants/password-policy';
 
 // DTO for creating a user by admin or owner.
 export class CreateUserDto {
@@ -15,7 +16,7 @@ export class CreateUserDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @IsByteLength(PASSWORD_MIN_BYTES, PASSWORD_MAX_BYTES)
   password!: string;
 
   @IsOptional()

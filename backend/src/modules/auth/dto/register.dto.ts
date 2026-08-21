@@ -1,4 +1,5 @@
-import { IsEmail, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsByteLength, IsEmail, IsString, Length, Matches } from 'class-validator';
+import { PASSWORD_MAX_BYTES, PASSWORD_MIN_BYTES } from '../../../common/constants/password-policy';
 
 // DTO for tenant onboarding with initial admin user.
 export class RegisterDto {
@@ -23,6 +24,6 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @IsByteLength(PASSWORD_MIN_BYTES, PASSWORD_MAX_BYTES)
   password!: string;
 }
