@@ -55,5 +55,4 @@ When Docker is available, also run `docker compose config` and build the affecte
 - `docs/ARCHITECTURE.md` — system structure, boundaries, flows, and evolution strategy.
 - `docs/adr/` — architectural decisions and their consequences.
 - `docs/operations/runbook.md` — operational checks and incident procedures.
-- `CONTRIBUTING.md` — contribution workflow and acceptance criteria.
 - `SECURITY.md` — vulnerability reporting and supported security posture.

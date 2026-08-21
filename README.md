@@ -380,11 +380,10 @@ Roadmap описывает направление, а не обещание ко
 | [ADR index](docs/adr/README.md)                  | Принятые архитектурные решения                  |
 | [Operations runbook](docs/operations/runbook.md) | Deployment, incidents, migration и recovery     |
 | [Security policy](SECURITY.md)                   | Безопасное сообщение об уязвимостях             |
-| [Contributing](CONTRIBUTING.md)                  | Workflow и acceptance criteria                  |
 | [AGENTS.md](AGENTS.md)                           | Инварианты для coding agents и автоматизации    |
 
-Перед pull request прочитайте [CONTRIBUTING.md](CONTRIBUTING.md), добавьте тесты и выполните
-релевантные quality gates. Используйте небольшие Conventional Commits.
+Перед pull request добавьте тесты и выполните релевантные quality gates. Используйте небольшие
+Conventional Commits.
 
 ## Лицензия
 
