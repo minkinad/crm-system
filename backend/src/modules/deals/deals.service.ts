@@ -6,8 +6,10 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 import { DealStageHistoryEntity } from './deal-stage-history.entity';
 import { DealEntity } from './deal.entity';
 import { DealStage, DealStatus } from './deal.enums';
-import { TaskEntity } from '../tasks/task.entity';
-import { TaskStatus } from '../tasks/task.enums';
+import {
+  TASK_ACTIVITY_READER,
+  TaskActivityReader
+} from '../tasks/task-activity.reader';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { QueryDealInsightsDto } from './dto/query-deal-insights.dto';
@@ -24,8 +26,6 @@ const STAGE_PROBABILITY: Record<DealStage, number> = {
   [DealStage.LOST]: 0
 };
 
-const OPEN_TASK_STATUSES = [TaskStatus.OPEN, TaskStatus.IN_PROGRESS];
-
 // Deals service handles pipeline transitions and history tracking.
 @Injectable()
 export class DealsService {
@@ -36,8 +36,8 @@ export class DealsService {
     private readonly historyRepository: Repository<DealStageHistoryEntity>,
     @InjectRepository(DealEntity)
     private readonly dealRepository: Repository<DealEntity>,
-    @InjectRepository(TaskEntity)
-    private readonly taskRepository: Repository<TaskEntity>,
+    @Inject(TASK_ACTIVITY_READER)
+    private readonly taskActivityReader: TaskActivityReader,
     private readonly realtimeService: RealtimeService
   ) {}
 
@@ -144,7 +144,17 @@ export class DealsService {
       .addGroupBy('deal.currency')
       .getRawMany<{ stage: DealStage; currency: string; count: number; value: string }>();
 
-    const [staleDeals, overdueCloseDates, dealsWithoutOpenTask] = await Promise.all([
+    const openDealIdRows = await openBaseQb
+      .clone()
+      .select('deal.id', 'id')
+      .getRawMany<{ id: string }>();
+    const openDealIds = openDealIdRows.map((row) => row.id);
+    const dealIdsWithOpenTasks = await this.taskActivityReader.findDealIdsWithOpenTasks(
+      tenantId,
+      openDealIds
+    );
+
+    const [staleDeals, overdueCloseDates] = await Promise.all([
       openBaseQb
         .clone()
         .andWhere('deal.updatedAt < :staleSince', { staleSince })
@@ -152,41 +162,15 @@ export class DealsService {
       openBaseQb
         .clone()
         .andWhere('deal.expectedCloseDate < :today', { today })
-        .getCount(),
-      openBaseQb
-        .clone()
-        .leftJoin(
-          TaskEntity,
-          'task',
-          'task.relatedDealId = deal.id AND task.tenantId = :tenantId AND task.deletedAt IS NULL AND task.status IN (:...statuses)',
-          { tenantId, statuses: OPEN_TASK_STATUSES }
-        )
-        .andWhere('task.id IS NULL')
         .getCount()
     ]);
+    const dealsWithoutOpenTask = openDealIds.length - dealIdsWithOpenTasks.size;
 
     const openDeals = await openBaseQb
       .clone()
       .orderBy('deal.updatedAt', 'ASC')
       .take(250)
       .getMany();
-
-    const openDealIds = openDeals.map((deal) => deal.id);
-    const openTasks = openDealIds.length
-      ? await this.taskRepository
-          .createQueryBuilder('task')
-          .where('task.tenantId = :tenantId', { tenantId })
-          .andWhere('task.relatedDealId IN (:...openDealIds)', { openDealIds })
-          .andWhere('task.status IN (:...statuses)', { statuses: OPEN_TASK_STATUSES })
-          .getMany()
-      : [];
-
-    const tasksByDeal = new Map<string, TaskEntity[]>();
-    for (const task of openTasks) {
-      const tasks = tasksByDeal.get(task.relatedDealId ?? '') ?? [];
-      tasks.push(task);
-      tasksByDeal.set(task.relatedDealId ?? '', tasks);
-    }
 
     const stageSummary = Object.values(DealStage).map((stage) => {
       const rows = stageRows.filter((row) => row.stage === stage);
@@ -209,8 +193,7 @@ export class DealsService {
 
     const nextActions = openDeals
       .map((deal) => {
-        const dealTasks = tasksByDeal.get(deal.id) ?? [];
-        const hasOpenTask = dealTasks.length > 0;
+        const hasOpenTask = dealIdsWithOpenTasks.has(deal.id);
         const updatedAt = new Date(deal.updatedAt);
         const isStale = updatedAt < staleSince;
         const isOverdue =

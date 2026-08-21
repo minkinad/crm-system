@@ -9,6 +9,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskEntity } from './task.entity';
+import { TaskStatus } from './task.enums';
 
 // Task service handling reminders and workload management.
 @Injectable()
@@ -93,6 +94,32 @@ export class TasksService {
     await this.repository.softDelete({ tenantId, id });
     await this.taskRemindersQueue.remove(`${tenantId}:${id}`).catch(() => undefined);
     this.realtimeService.publish(tenantId, 'tasks.deleted', { id });
+  }
+
+  async findDealIdsWithOpenTasks(tenantId: string, dealIds: string[]): Promise<Set<string>> {
+    const result = new Set<string>();
+    const batchSize = 1000;
+
+    for (let offset = 0; offset < dealIds.length; offset += batchSize) {
+      const batch = dealIds.slice(offset, offset + batchSize);
+      const rows = await this.repository
+        .createQueryBuilder('task')
+        .select('DISTINCT task.relatedDealId', 'dealId')
+        .where('task.tenantId = :tenantId', { tenantId })
+        .andWhere('task.relatedDealId IN (:...dealIds)', { dealIds: batch })
+        .andWhere('task.status IN (:...statuses)', {
+          statuses: [TaskStatus.OPEN, TaskStatus.IN_PROGRESS]
+        })
+        .getRawMany<{ dealId: string }>();
+
+      for (const row of rows) {
+        if (row.dealId) {
+          result.add(row.dealId);
+        }
+      }
+    }
+
+    return result;
   }
 
   private async scheduleReminderIfNeeded(
