@@ -1,0 +1,17 @@
+# Default owner for every change in the repository.
+* @minkinad
+
+# Security-sensitive and operational boundaries are listed explicitly so future
+# ownership changes can be reviewed without weakening the default rule.
+/.github/ @minkinad
+/backend/src/common/guards/ @minkinad
+/backend/src/common/middleware/ @minkinad
+/backend/src/config/ @minkinad
+/backend/src/database/ @minkinad
+/backend/src/modules/auth/ @minkinad
+/backend/src/modules/sessions/ @minkinad
+/frontend/src/api/ @minkinad
+/frontend/src/auth/ @minkinad
+/docs/adr/ @minkinad
+/docs/operations/ @minkinad
+/SECURITY.md @minkinad
