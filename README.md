@@ -8,17 +8,17 @@
 
 - **Frontend (React + TypeScript)**
   - SPA-клиент с MUI, Zustand и React Query.
-  - Авторизация через access token + refresh token (cookie), auto-refresh через Axios interceptor.
-  - Tenant isolation на клиенте через `x-tenant-id` header.
+  - Короткоживущий access token хранится только в памяти, refresh token — в HttpOnly cookie.
+  - Single-flight auto-refresh восстанавливает сессию после перезагрузки без хранения JWT в Web Storage.
 
 - **Backend API (NestJS, v1)**
   - Clean/Hexagonal подход: `controller -> service -> repository`.
   - DTO валидация + sanitization (XSS mitigation).
-  - RBAC (`RolesGuard`) + tenant isolation (`TenantMiddleware` + `TenantAccessGuard`).
-  - JWT access + rotated refresh sessions.
+  - RBAC (`RolesGuard`) + server-owned tenant context из проверенного JWT (`TenantAccessGuard`).
+  - JWT access + сериализованная refresh rotation с обнаружением reuse и отзывом сессии.
   - Audit logging через глобальный interceptor.
   - Soft delete через `DeleteDateColumn` и `softDelete`.
-  - OpenAPI документация на `/api/docs`.
+  - OpenAPI документация на `/api/docs`, включаемая только через `ENABLE_SWAGGER`.
 
 - **Data & Infra**
   - PostgreSQL: основная транзакционная БД.
@@ -95,7 +95,7 @@ CRM-system/
 
 ### `tenants`
 - Файлы: `backend/src/modules/tenants/*`.
-- Роль: изоляция SaaS-workspace, хранение tenant, контекст tenant через `AsyncLocalStorage`.
+- Роль: изоляция SaaS-workspace и self-service настройки текущего tenant через `/tenants/current`.
 
 ### `roles & guards`
 - Файлы: `backend/src/common/constants/roles.ts`, `backend/src/common/guards/roles.guard.ts`, `backend/src/common/decorators/roles.decorator.ts`, `backend/src/common/guards/tenant-access.guard.ts`.
@@ -149,17 +149,20 @@ CRM-system/
 ## 4) Безопасность
 
 - RBAC Guard: `RolesGuard`
-- Tenant middleware isolation: `TenantMiddleware`
+- Tenant isolation: tenant берётся только из подписанного access JWT; клиентский tenant id не является источником доверия.
 - Rate limiting (Redis): `RedisRateLimitGuard`
 - Input + DTO validation: `ValidationPipe` + `class-validator`
 - XSS mitigation: `SanitizePipe`
-- CSRF protection: `CsrfMiddleware` (double-submit token)
+- CSRF protection: `CsrfMiddleware` (double-submit token, включая refresh endpoint)
 - Password hashing: `bcrypt`
 - Helmet + CORS: `main.ts`
+- WebSocket: JWT + активная серверная сессия + Origin allowlist; room вычисляется только из JWT.
+- Role safety: только Admin управляет ролями; последнего admin и собственную admin-учётную запись нельзя удалить/понизить.
+- Runtime: лимит тела запроса, безопасный `trust proxy`, production Swagger opt-in, non-root/read-only контейнеры.
 
 ## 5) Frontend auth (React)
 
-- `frontend/src/auth/store.ts`: хранение access/csrf/user.
+- `frontend/src/auth/store.ts`: access token и профиль только в памяти; в `localStorage` хранится лишь неавторизующий CSRF nonce.
 - `frontend/src/api/http.ts`: JWT + tenant + csrf headers, auto-refresh on 401.
 - `frontend/src/pages/LoginPage.tsx`, `RegisterPage.tsx`: auth flows.
 - `frontend/src/components/ProtectedRoute.tsx`: защита роутов.
@@ -175,6 +178,10 @@ CRM-system/
 - next actions для менеджера;
 - плотный операционный dashboard вместо технического demo-экрана.
 
+Актуальное направление рынка — единый action-oriented workspace: прогноз, приоритизация возможностей, подсказки следующего шага, автоматизация follow-up и данные в одном контексте. Текущий cockpit развивает именно эту основу; следующая продуктовая итерация должна добавлять интеграции и AI только поверх качественных tenant-scoped данных и аудита, а не обходить их.
+
+Архитектурные решения сверены с [OWASP API Security Top 10](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/), [OWASP WebSocket Security](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html), [OAuth 2.0 Security BCP (RFC 9700)](https://www.rfc-editor.org/info/rfc9700/) и текущим подходом [HubSpot AI Guided Selling](https://www.hubspot.com/products/sales/ai-guided-selling).
+
 ## 6) Docker и запуск
 
 1. Скопируйте конфиги:
@@ -184,7 +191,7 @@ CRM-system/
 3. Доступ:
    - Frontend: `http://localhost:5173`
    - Backend: `http://localhost:3000`
-   - OpenAPI: `http://localhost:3000/api/docs`
+   - OpenAPI при `ENABLE_SWAGGER=true`: `http://localhost:3000/api/docs`
    - Readiness: `http://localhost:3000/api/v1/health/ready`
    - Liveness: `http://localhost:3000/api/v1/health/live`
 
@@ -231,5 +238,6 @@ CRM-system/
 
 - `synchronize` уже отключен; используйте только миграции.
 - Валидация env теперь блокирует некорректные параметры и placeholder secrets в `production`.
+- В production задайте разные JWT secrets длиной не менее 32 байт, `REFRESH_COOKIE_SECURE=true`, `ENABLE_SWAGGER=false` и точный `CORS_ORIGINS`.
 - Добавлены readiness/liveness endpoints, глобальный error contract, CI quality gates и корректное завершение Redis-клиента.
 - Для следующего этапа рекомендую добавить observability stack: Sentry + Prometheus/Grafana + централизованный log shipping.
