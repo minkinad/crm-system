@@ -1,5 +1,5 @@
 # Frontend production image with static build served by nginx.
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 ARG VITE_API_BASE_URL=http://localhost:3000/api/v1
 ARG VITE_CSRF_COOKIE_NAME=crm_csrf_token
@@ -14,7 +14,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
